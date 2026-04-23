@@ -1,0 +1,20 @@
+@baseUrl = http://localhost:3000/api
+@brandId = pZyTFDdtNSAgGDvoViFK
+@scanId = 62NJnKO5OwbWi9nCDAc4
+### Post Scan
+POST {{baseUrl}}/scans
+Content-Type: application/json
+
+{
+    "brand": "Samsung",
+    "category": "home tv"
+}
+
+### get scan
+GET {{baseUrl}}/scans/{{brandId}}/{{scanId}}
+
+### get all brands 
+GET {{baseUrl}}/analytics/brands
+
+### get analytics for a brand
+GET {{baseUrl}}/analytics?brand=Samsung

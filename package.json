@@ -1,0 +1,9 @@
+{
+  "name": "ai-visibility-tracker",
+  "private": true,
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev:backend": "npm run start:dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend"
+  }
+}
