@@ -120,16 +120,25 @@ export class AIService {
       const batch = tasks.slice(i, i + concurrency);
       const batchResults = await Promise.allSettled(batch.map((t) => t()));
       results.push(...batchResults);
+
       if (i + concurrency < tasks.length) {
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
+
     return results;
   }
 
   async runScan(input: ScanInput): Promise<RawResult[]> {
-    const engines = Object.keys(ENGINE_PERSONAS) as Engine[];
-    const tasks = SEARCH_PROMPTS.flatMap((template) =>
+    const allEngines = Object.keys(ENGINE_PERSONAS) as Engine[];
+
+    // خففنا المحركات لاثنين فقط
+    const engines = allEngines.slice(0, 2);
+
+    // خففنا البرومبتات لأول 2 فقط
+    const promptTemplates = SEARCH_PROMPTS.slice(0, 2);
+
+    const tasks = promptTemplates.flatMap((template) =>
       engines.map(
         (engine) => () =>
           this.runSingle(template, engine, input.brand, input.category),
@@ -137,10 +146,11 @@ export class AIService {
     );
 
     this.logger.log(
-      `Running ${tasks.length} via [${this.provider}] parallel calls (3 at a time) for brand: "${input.brand}"`,
+      `Running ${tasks.length} via [${this.provider}] limited calls (${engines.length} engines, ${promptTemplates.length} prompts, 1 at a time) for brand: "${input.brand}"`,
     );
 
-    const settled = await this.runWithConcurrency(tasks, 3, 300);
+    // 1 request كل مرة + 2.5 ثانية بين كل batch
+    const settled = await this.runWithConcurrency(tasks, 1, 2500);
 
     const results: RawResult[] = [];
     for (const outcome of settled) {
