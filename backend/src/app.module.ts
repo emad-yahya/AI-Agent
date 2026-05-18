@@ -1,4 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -49,6 +54,12 @@ const redisUrl = process.env.REDIS_URL;
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(ApiKeyMiddleware).forRoutes('*');
+    // SSE endpoint excluded: EventSource API cannot send Authorization headers.
+    // The scanId path param is a Firestore-generated random ID (~20 char base64)
+    // that is only known to the client that created the scan via authenticated POST.
+    consumer
+      .apply(ApiKeyMiddleware)
+      .exclude({ path: 'scans/stream/:scanId', method: RequestMethod.GET })
+      .forRoutes('*');
   }
 }
