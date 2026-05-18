@@ -17,6 +17,7 @@ import { SeoCompareView } from './components/SeoCompareView';
 import { TopicsPanel } from './components/TopicsPanel';
 import { CitationsPanel } from './components/CitationsPanel';
 import { ListicleGapPanel } from './components/ListicleGapPanel';
+import { CompetitorAuditPanel } from './components/CompetitorAuditPanel';
 import { CompetitorTrendChart } from './components/CompetitorTrend';
 import { AlertSettings } from './components/AlertSettings';
 import { SovChart } from './components/SovChart';
@@ -186,6 +187,10 @@ export default function App() {
                     <ListicleGapPanel
                       brand={scanMeta.brand}
                       category={scanMeta.category}
+                      results={scanResult.results}
+                    />
+                    <CompetitorAuditPanel
+                      brand={scanMeta.brand}
                       results={scanResult.results}
                     />
                     <PromptCoverageMap brand={scanMeta.brand} />

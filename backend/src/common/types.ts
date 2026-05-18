@@ -179,6 +179,60 @@ export interface ListicleGapScan {
   brandMentionedCount?: number;
 }
 
+export interface AiBotAccess {
+  GPTBot: boolean;
+  ChatGPTUser: boolean;
+  ClaudeBot: boolean;
+  AnthropicAI: boolean;
+  GoogleExtended: boolean;
+  PerplexityBot: boolean;
+  CCBot: boolean;
+  AppleBotExtended: boolean;
+}
+
+export interface SiteAudit {
+  name: string;
+  domain: string;
+  url: string;
+  status: 'ok' | 'unreachable';
+  schemas: string[];
+  hasOrganization: boolean;
+  hasLocalBusiness: boolean;
+  hasFAQ: boolean;
+  hasReview: boolean;
+  hasBreadcrumb: boolean;
+  hasArticle: boolean;
+  hasLlmsTxt: boolean;
+  hasSitemap: boolean;
+  hasRobotsTxt: boolean;
+  aiBots: AiBotAccess;
+  hasMetaDescription: boolean;
+  hasOgTags: boolean;
+  indexedPages: number | null;
+  score: number;
+  scoreOutOf: number;
+  signals: Array<{ key: string; label: string; passed: boolean }>;
+}
+
+export interface CompetitorAuditScan {
+  id?: string;
+  brandId: string;
+  brand: string;
+  brandDomain: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: firestore.Timestamp;
+  completedAt?: firestore.Timestamp;
+  brandAudit?: SiteAudit;
+  competitorAudits?: SiteAudit[];
+  gapSummary?: Array<{
+    key: string;
+    label: string;
+    yourStatus: boolean;
+    competitorsWithIt: number;
+    totalCompetitors: number;
+  }>;
+}
+
 export interface SeoSiteScan {
   id?: string;
   siteId: string;

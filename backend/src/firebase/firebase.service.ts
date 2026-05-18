@@ -84,6 +84,10 @@ export class FirebaseService implements OnModuleInit {
     return this.brands().doc(brandId).collection('listicleGapScans');
   }
 
+  competitorAuditScans(brandId: string) {
+    return this.brands().doc(brandId).collection('competitorAuditScans');
+  }
+
   alertSettings(brandId: string) {
     return this.brands().doc(brandId).collection('config').doc('alerts');
   }

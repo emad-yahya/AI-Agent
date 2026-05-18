@@ -2,6 +2,45 @@
 
 ---
 
+## [2026-05-18] — Session 29: Competitor Site Fingerprint (GEO Tier 1 #3)
+
+### Goal
+Real audit of brand site vs each competitor: JSON-LD schemas, llms.txt, robots.txt AI-bot policy, sitemap, meta+OG. Every gap → concrete fix. No LLM guesswork.
+
+### Backend
+- New module `backend/src/competitor-audit/`:
+  - `dto.ts` — `CreateCompetitorAuditDto` (brand + brandDomain + competitors[] max 6 + optional country)
+  - `competitor-audit.service.ts`:
+    - `createScan` returns immediately, runs in background
+    - `resolveDomains` — inputs may be bare domains or brand names. Names go through Serper (`{name} official website` query, top 5 organic, skip aggregator domains like wikipedia/linkedin/facebook) to find the official site
+    - `auditSite(domain)`:
+      - Fetch homepage HTML, parse JSON-LD blocks (recursively handles `@graph` arrays + nested `@type` arrays), collect schema types
+      - Check meta description + og:title + og:description
+      - Fetch `/llms.txt`, `/robots.txt`, `/sitemap.xml` presence
+      - Parse robots.txt with proper stacked User-agent line handling (local state, concurrent-safe)
+      - Detect 8 AI bots' allow/disallow (GPTBot, ChatGPT-User, ClaudeBot, anthropic-ai, Google-Extended, PerplexityBot, CCBot, Applebot-Extended). Falls back to global `*` policy if no bot-specific rules
+      - Serper `site:domain` for indexed pages estimate
+    - 10-signal scoring rubric: orgOrLocalBiz, FAQ, Review, Breadcrumb, Article, llms.txt, GPTBot allow, Anthropic allow, sitemap, meta+OG
+    - `buildGapSummary` — per signal: your status, how many competitors have it
+    - Concurrency 3 to stay polite to remote hosts
+  - `competitor-audit.controller.ts` — `POST /api/competitor-audit/scan`, `GET /api/competitor-audit?brand=`, `GET /api/competitor-audit/:brandId/:scanId`
+  - `competitor-audit.module.ts` — imports `FirebaseModule`, `SeoModule` (for `SerperService`)
+- `common/types.ts` — `AiBotAccess`, `SiteAudit`, `CompetitorAuditScan` types
+- `firebase/firebase.service.ts` — `competitorAuditScans(brandId)` collection helper
+- `app.module.ts` — `CompetitorAuditModule` registered
+
+### Frontend
+- `api/client.ts` — `AiBotAccess`, `SiteAudit`, `CompetitorAuditScan` types + `createCompetitorAudit`, `getCompetitorAudit`, `listCompetitorAudits`
+- `components/CompetitorAuditPanel.tsx` (NEW) — auto-loads latest audit, auto-fills competitors from current scan's topics, user pastes own domain + edits competitors list, polls every 4s. Renders: per-site ScoreCard (X/10 with color tone + checklist + AI-bot summary line), gap matrix table (Signal / You / Competitors-with-it / Status badge)
+- `App.tsx` — `CompetitorAuditPanel` rendered after `ListicleGapPanel`
+
+### Test plan
+- ✅ Backend: 63/63 jest pass
+- ✅ Backend + frontend: builds clean
+- ⏳ Pending live verification on Railway/Vercel after push: run audit on platinumsquare.ae vs bayut.com + propertyfinder.ae
+
+---
+
 ## [2026-05-18] — Session 28: Listicle Gap Finder (GEO Tier 1 #2)
 
 ### Goal

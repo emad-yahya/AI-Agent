@@ -1,5 +1,5 @@
 # CURRENT_STATUS.md
-_آخر تحديث: 2026-05-18 (Session 28)_
+_آخر تحديث: 2026-05-18 (Session 29)_
 
 ## 🎯 GEO Vision — الهدف النهائي
 السستم يجب أن يتحول من **يقيس** visibility إلى **يحسّن** ranking على AI engines، بحيث أي عميل يسأل ChatGPT/Gemini/Perplexity عن أي شي له علاقة بمجال البراند → اسم البراند يطلع باول النتائج.
@@ -11,9 +11,31 @@ _آخر تحديث: 2026-05-18 (Session 28)_
 |---|---|---|---|
 | 1 | Citation Extractor | ✅ Session 27 | يستخرج URLs اللي Gemini grounding قراها لكل scan |
 | 2 | **Listicle Gap Finder** | 🟡 **جاري — Session 28** | Serper search على "best X in Y" → scrape أول 20 نتيجة → يحدد مقالات تذكر منافسيك وما تذكرك |
-| 3 | Competitor Site Fingerprint (Schema/llms.txt Audit) | ⬜ Tier 1 #3 | Crawl موقع كل منافس + الموقع تبعك، مقارنة schemas + llms.txt + robots/AI-bots + indexed pages |
+| 3 | Competitor Site Fingerprint (Schema/llms.txt Audit) | ✅ Session 29 | Crawl موقع كل منافس + الموقع تبعك، مقارنة schemas + llms.txt + robots/AI-bots + indexed pages |
 | 4 | Backlink Gap | ⬜ Tier 1 #4 (يحتاج Ahrefs/DataForSEO API ~$50/mo) | من يلينك للمنافس وما يلينك لك |
 | 5 | Data-driven Recommendations | ⬜ Tier 1 #5 | استبدال generic Gemini recs بـactions حقيقية مرتبة بأولوية، كل توصية لها مصدر بيانات قابل للنقر |
+
+---
+
+### [2026-05-18] Session 29 — Competitor Site Fingerprint (Tier 1 #3)
+
+**ليه:**
+السستم بعرف منافسيك من Topics، وبعرف وين AI يقرأ (Citations)، وعنده قائمة مقالات فيها gaps (Listicle Gap). لازم خطوة تالتة: ليش مواقع المنافسين تظهر بـAI أصلاً؟ فحص فعلي للـsignals التقنية على موقع كل منافس مقابل موقعك.
+
+**التطبيق:**
+- Module جديد `competitor-audit/`: يفحص لكل دومين:
+  - JSON-LD schemas (Organization, LocalBusiness, FAQ, Review, Breadcrumb, Article)
+  - `/llms.txt` موجود؟
+  - `/robots.txt` يسمح لـAI bots؟ (GPTBot, ChatGPT-User, ClaudeBot, anthropic-ai, Google-Extended, PerplexityBot, CCBot, Applebot-Extended)
+  - `/sitemap.xml` موجود؟
+  - meta description + Open Graph tags
+  - Serper `site:domain` تقدير indexed pages
+- Domain resolver: لو الإدخال اسم (Bayut) وليس دومين، Serper search لإيجاد الموقع الرسمي (مع تخطي aggregators زي Wikipedia/LinkedIn).
+- Scoring rubric من 10 signals — Side-by-side scorecard + gap matrix يطلع بالضبط شو ناقصك ومنافسيك عندهم.
+- Firestore: `competitorAuditScans` collection.
+- Frontend: `CompetitorAuditPanel` مع inputs للدومين + competitors، scorecards ملونة، جدول gap.
+
+**جاي:** Tier 1 #4 (Backlink Gap) يحتاج Ahrefs/DataForSEO API، أو Tier 1 #5 (Data-driven Recommendations) يجمع #1+#2+#3.
 
 ---
 

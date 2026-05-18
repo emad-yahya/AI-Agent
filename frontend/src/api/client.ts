@@ -317,6 +317,60 @@ export interface ListicleGapScan {
   brandMentionedCount?: number;
 }
 
+export interface AiBotAccess {
+  GPTBot: boolean;
+  ChatGPTUser: boolean;
+  ClaudeBot: boolean;
+  AnthropicAI: boolean;
+  GoogleExtended: boolean;
+  PerplexityBot: boolean;
+  CCBot: boolean;
+  AppleBotExtended: boolean;
+}
+
+export interface SiteAudit {
+  name: string;
+  domain: string;
+  url: string;
+  status: 'ok' | 'unreachable';
+  schemas: string[];
+  hasOrganization: boolean;
+  hasLocalBusiness: boolean;
+  hasFAQ: boolean;
+  hasReview: boolean;
+  hasBreadcrumb: boolean;
+  hasArticle: boolean;
+  hasLlmsTxt: boolean;
+  hasSitemap: boolean;
+  hasRobotsTxt: boolean;
+  aiBots: AiBotAccess;
+  hasMetaDescription: boolean;
+  hasOgTags: boolean;
+  indexedPages: number | null;
+  score: number;
+  scoreOutOf: number;
+  signals: Array<{ key: string; label: string; passed: boolean }>;
+}
+
+export interface CompetitorAuditScan {
+  id?: string;
+  brandId: string;
+  brand: string;
+  brandDomain: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: string | { seconds: number };
+  completedAt?: string | { seconds: number };
+  brandAudit?: SiteAudit;
+  competitorAudits?: SiteAudit[];
+  gapSummary?: Array<{
+    key: string;
+    label: string;
+    yourStatus: boolean;
+    competitorsWithIt: number;
+    totalCompetitors: number;
+  }>;
+}
+
 export interface ScanProgressEvent {
   type: 'progress' | 'done' | 'error';
   completed?: number;
@@ -506,6 +560,33 @@ export const api = {
 
   listListicleGapScans: async (brand: string) => {
     const res = await http.get<ListicleGapScan[]>('/listicle-gap', {
+      params: { brand },
+    });
+    return res.data;
+  },
+
+  createCompetitorAudit: async (
+    brand: string,
+    brandDomain: string,
+    competitors: string[],
+    country?: string,
+  ) => {
+    const res = await http.post<{ scanId: string; brandId: string }>(
+      '/competitor-audit/scan',
+      { brand, brandDomain, competitors, country },
+    );
+    return res.data;
+  },
+
+  getCompetitorAudit: async (brandId: string, scanId: string) => {
+    const res = await http.get<CompetitorAuditScan>(
+      `/competitor-audit/${brandId}/${scanId}`,
+    );
+    return res.data;
+  },
+
+  listCompetitorAudits: async (brand: string) => {
+    const res = await http.get<CompetitorAuditScan[]>('/competitor-audit', {
       params: { brand },
     });
     return res.data;
