@@ -30,6 +30,16 @@ export interface RawResult {
   prompt: string;
   response: string;
   parsed: ParsedResult;
+  citations: string[];
+}
+
+interface EngineResponse {
+  text: string;
+  citations: string[];
+}
+
+interface GroundingChunk {
+  web?: { uri?: string; title?: string };
 }
 
 @Injectable()
@@ -155,17 +165,20 @@ export class AIService {
   }
 
   // Real Gemini — gemini-style (no search) + perplexity-style (search grounding)
+  // Returns text + grounding citations (Perplexity-style only — search-grounded
+  // calls expose the URLs Gemini actually read from the web).
   private async callGemini(
     systemPrompt: string,
     userMessage: string,
     useSearch = false,
     attempt = 0,
-  ): Promise<string> {
+  ): Promise<EngineResponse> {
     if (!this.gemini) {
       this.logger.warn(
         'GOOGLE_GEMINI_API_KEY not set — falling back to OpenRouter',
       );
-      return this.callOpenrouter(systemPrompt, userMessage);
+      const text = await this.callOpenrouter(systemPrompt, userMessage);
+      return { text, citations: [] };
     }
     const tools = useSearch
       ? ([{ googleSearch: {} }] as unknown as Tool[])
@@ -178,7 +191,11 @@ export class AIService {
     });
     try {
       const result = await model.generateContent(userMessage);
-      return result.response.text();
+      const text = result.response.text();
+      const citations = useSearch
+        ? this.extractGeminiCitations(result.response)
+        : [];
+      return { text, citations };
     } catch (err) {
       const msg = (err as Error).message ?? '';
       const is429 = msg.includes('429') || msg.includes('Too Many Requests');
@@ -200,15 +217,38 @@ export class AIService {
     }
   }
 
+  // Gemini search-grounded responses carry citations in candidates[0].groundingMetadata.
+  // Extract unique URIs — these are the exact pages AI engines read to answer
+  // shopper queries about the category. Knowing them tells the brand WHERE to
+  // fight for visibility (guest posts, listicle inclusion, PR pitches).
+  private extractGeminiCitations(response: unknown): string[] {
+    try {
+      const r = response as {
+        candidates?: Array<{
+          groundingMetadata?: { groundingChunks?: GroundingChunk[] };
+        }>;
+      };
+      const chunks = r.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+      const uris = chunks
+        .map((c) => c.web?.uri)
+        .filter((u): u is string => typeof u === 'string' && u.length > 0);
+      return [...new Set(uris)];
+    } catch {
+      return [];
+    }
+  }
+
   // Route each engine to its real API
   private async callEngine(
     engine: Engine,
     systemPrompt: string,
     userMessage: string,
-  ): Promise<string> {
+  ): Promise<EngineResponse> {
     switch (engine) {
-      case 'chatgpt-style':
-        return this.callOpenAI(systemPrompt, userMessage);
+      case 'chatgpt-style': {
+        const text = await this.callOpenAI(systemPrompt, userMessage);
+        return { text, citations: [] };
+      }
       case 'gemini-style':
         return this.callGemini(systemPrompt, userMessage, false);
       case 'perplexity-style':
@@ -228,9 +268,20 @@ export class AIService {
 
     this.logger.debug(`[${engine}] "${prompt.slice(0, 60)}..."`);
 
-    const response = await this.callEngine(engine, systemPrompt, prompt);
-    const parsed = parseResponse(response, brand);
-    return { engine, template, prompt, response, parsed };
+    const { text, citations } = await this.callEngine(
+      engine,
+      systemPrompt,
+      prompt,
+    );
+    const parsed = parseResponse(text, brand);
+    return {
+      engine,
+      template,
+      prompt,
+      response: text,
+      parsed,
+      citations,
+    };
   }
 
   private async runWithConcurrency<T>(

@@ -69,6 +69,7 @@ export interface ScanResult {
   sentiment: Sentiment;
   visibilityScore: number;
   topics: string[];
+  citations?: string[];
   createdAt: firestore.Timestamp;
 }
 

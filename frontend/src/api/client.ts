@@ -45,6 +45,7 @@ export interface ScanResult {
   sentiment: "positive" | "neutral" | "negative";
   visibilityScore: number;
   topics: string[];
+  citations?: string[];
 }
 
 export interface ScanResponse {

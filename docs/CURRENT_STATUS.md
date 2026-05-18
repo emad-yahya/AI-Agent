@@ -1,10 +1,23 @@
 # CURRENT_STATUS.md
-_آخر تحديث: 2026-05-18 (Session 26)_
+_آخر تحديث: 2026-05-18 (Session 27)_
 
 **🟢 LIVE في prod**
 - Frontend: https://ai-agent-frontend-two-eosin.vercel.app (Vercel)
 - Backend: https://backend-production-e169.up.railway.app (Railway)
 - GitHub: emad-yahya/AI-Agent (main)
+
+---
+
+### [2026-05-18] Session 27 — Citation Extractor (GEO Tier 1 #1)
+
+**ليه:** السستم كان يقيس visibility فقط. علشان البراند **يرتب** أعلى لازم نعرف وين AI engines يقرأوا. Gemini grounding metadata يرجع URLs بكل response — قاعدة لكل GEO improvements.
+
+**التطبيق:**
+- `callGemini` يرجع `{ text, citations[] }` بدل string. `extractGeminiCitations` يسحب URIs من `groundingMetadata.groundingChunks`. citations فقط للـ Perplexity-style (الـ search-grounded).
+- `ScanResult.citations[]` يتخزن على Firestore.
+- `CitationsPanel` UI: top domains by frequency، coverage % (كم page منهم ذكرت اسم البراند)، تحذير لو 0 sources.
+
+**جاي:** Listicle Gap Finder (#2) + Schema/llms.txt Audit (#3).
 
 ---
 

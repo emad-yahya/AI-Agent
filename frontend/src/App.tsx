@@ -15,6 +15,7 @@ import { SeoSiteResults } from './components/SeoSiteResults';
 import { SeoTrendChart } from './components/SeoTrendChart';
 import { SeoCompareView } from './components/SeoCompareView';
 import { TopicsPanel } from './components/TopicsPanel';
+import { CitationsPanel } from './components/CitationsPanel';
 import { CompetitorTrendChart } from './components/CompetitorTrend';
 import { AlertSettings } from './components/AlertSettings';
 import { SovChart } from './components/SovChart';
@@ -180,6 +181,7 @@ export default function App() {
                     </div>
                     <ResultTable results={scanResult.results} stats={scanResult.stats} />
                     <TopicsPanel results={scanResult.results} />
+                    <CitationsPanel results={scanResult.results} brand={scanMeta.brand} />
                     <PromptCoverageMap brand={scanMeta.brand} />
                     <RecommendationsPanel recommendations={scanResult.recommendations} />
                     <ImpactPredictor results={scanResult.results} stats={scanResult.stats} brand={scanMeta.brand} />

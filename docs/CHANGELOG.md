@@ -2,6 +2,35 @@
 
 ---
 
+## [2026-05-18] — Session 27: Citation Extractor (GEO Tier 1 #1)
+
+### Goal
+Visibility tracker now MEASURES brand presence. Citation Extractor is step 1 toward IMPROVING ranking — surface the exact web pages AI engines (Gemini-style + Perplexity-style) read to answer category queries. Knowing those URLs tells the brand WHERE to fight (guest posts, listicle inclusion, PR pitches).
+
+### Backend changes
+- `backend/src/ai/ai.service.ts`
+  - `EngineResponse { text, citations }` new internal type — `callGemini`, `callEngine`, `runSingle` all return text + citations together
+  - `extractGeminiCitations(response)` — pulls `candidates[0].groundingMetadata.groundingChunks[].web.uri` and dedupes. Citations only populated for `perplexity-style` (Google Search grounding); other engines return empty array
+  - `RawResult.citations: string[]` added
+- `backend/src/common/types.ts` — `ScanResult.citations?: string[]`
+- `backend/src/scans/scans.service.ts` — persists `citations` on Firestore result docs
+- `backend/src/ai/ai.service.spec.ts` — `callEngine` mock returns `{ text, citations: [] }` shape
+
+### Frontend changes
+- `frontend/src/api/client.ts` — `ScanResult.citations?: string[]`
+- `frontend/src/components/CitationsPanel.tsx` (NEW) — aggregates all citations across scan, dedupes by URL, sorts by frequency, computes brand-coverage % (how many cited pages mentioned the brand). Shows top 12 + expand, color-coded chip (green if page-mentioning-brand, slate if not), warning banner if brand on 0 sources
+- `frontend/src/App.tsx` — `CitationsPanel` rendered after `TopicsPanel`
+
+### Test plan
+- ✅ Backend: 63/63 jest pass (callEngine mock updated)
+- ✅ Backend: `npm run build` clean
+- ✅ Frontend: `npm run build` clean
+
+### Pending verification (after deploy)
+- Run a scan against "Platinum Square" / "dubai real estate broker" with Full mode → expect 90 results × N citations per Perplexity-style call → panel shows top domains (bayut.com, propertyfinder.ae, etc.) + brand-coverage %
+
+---
+
 ## [2026-05-18] — Session 26: Quick Scan + Full GEO Scan modes
 
 ### Goal

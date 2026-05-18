@@ -99,6 +99,7 @@ export class ScansService {
           sentiment: raw.parsed.sentiment,
           visibilityScore: raw.parsed.visibilityScore,
           topics: raw.parsed.topics,
+          citations: raw.citations ?? [],
           createdAt: this.firebase.now(),
         } as ScanResult);
       }

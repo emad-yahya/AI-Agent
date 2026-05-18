@@ -37,7 +37,7 @@ type PrivateService = {
     engine: string,
     systemPrompt: string,
     userMessage: string,
-  ) => Promise<string>;
+  ) => Promise<{ text: string; citations: string[] }>;
 };
 
 describe('AIService', () => {
@@ -48,9 +48,10 @@ describe('AIService', () => {
     // Spy on callEngine — no real API calls in tests
     jest
       .spyOn(service as unknown as PrivateService, 'callEngine')
-      .mockResolvedValue(
-        '1. Bosch — excellent appliances recommended by experts.',
-      );
+      .mockResolvedValue({
+        text: '1. Bosch — excellent appliances recommended by experts.',
+        citations: [],
+      });
     // Skip live LLM call for dynamic prompts — return static fallback
     jest
       .spyOn(service, 'generateCategoryPrompts')
@@ -129,7 +130,7 @@ describe('AIService', () => {
         .mockImplementation(() => {
           callCount++;
           if (callCount === 1) return Promise.reject(new Error('API error'));
-          return Promise.resolve('Bosch is excellent.');
+          return Promise.resolve({ text: 'Bosch is excellent.', citations: [] });
         });
 
       const results = await service.runScan({
