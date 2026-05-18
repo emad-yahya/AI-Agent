@@ -1,5 +1,31 @@
 # CURRENT_STATUS.md
-_آخر تحديث: 2026-05-18 (Session 24)_
+_آخر تحديث: 2026-05-18 (Session 25)_
+
+**🟢 LIVE في prod**
+- Frontend: https://ai-agent-frontend-two-eosin.vercel.app (Vercel)
+- Backend: https://backend-production-e169.up.railway.app (Railway)
+- GitHub: emad-yahya/AI-Agent (main)
+
+---
+
+### [2026-05-18] Session 25 — Production Deploy
+
+**النشر:**
+- Frontend → Vercel (Vite + React 19)
+- Backend → Railway (NestJS 12 + Firestore)
+- Auto-deploy من GitHub `main` لكلا الـ services
+
+**التغييرات للـ prod readiness:**
+1. `FirebaseService.loadCredential()` — يقرأ `FIREBASE_SERVICE_ACCOUNT_JSON` env var (مطلوب لـ Railway لأنه ما يدعم رفع ملفات) مع fallback لملف محلي
+2. CORS in `main.ts` يطبّق `.replace(/\/+$/, '')` على `FRONTEND_URL` (browsers تطلب exact match — trailing slash يكسر كل شي)
+3. `backend/package-lock.json` مولّد منفصلاً ليشتغل `npm ci` بالـ Dockerfile (workspace lockfile بالـ root ما يكفي)
+
+**التحقق:**
+- 9/9 critical endpoints 200 (analytics, scans, seo, alerts, scheduler)
+- CORS strict pass، Auth 401 بدون key
+- Firestore connected، 10 brands
+
+**معلوم minor:** `GET /api/seo/scans` بدون `?brand=` يرجع 500 (legacy، frontend ما يستعمله).
 
 ---
 

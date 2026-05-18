@@ -2,6 +2,33 @@
 
 ---
 
+## [2026-05-18] — Session 25: Production deploy — Vercel (frontend) + Railway (backend)
+
+### ✅ Deployed to production
+- **Frontend (Vercel):** https://ai-agent-frontend-two-eosin.vercel.app
+- **Backend (Railway):** https://backend-production-e169.up.railway.app
+- **GitHub:** repo pushed to `emad-yahya/AI-Agent` (commits 645209d → 34c42cf)
+
+### Code changes
+- `backend/src/firebase/firebase.service.ts` — يدعم `FIREBASE_SERVICE_ACCOUNT_JSON` env var (للـ prod) مع fallback لـ `serviceAccountKey.json` (local dev). يرمي error واضح لو الاثنين فاضيين.
+- `backend/src/main.ts` — strip trailing `/` من `FRONTEND_URL` قبل ما يمرره لـ CORS (متصفحات تطلب exact match)
+- `backend/firebase.json` جديد — يربط Firebase CLI بـ `firestore.indexes.json`
+- `backend/package-lock.json` جديد — مولّد بـ `--workspaces=false` ليشتغل `npm ci` بالـ Dockerfile لو Railway يبني من `backend/` كـ root
+- `backend/.env` — رفع `AI_DELAY_MS` 2000→8000، حذف `GOOGLE_CSE_*` (ميتة، Serper هو الـ active)، توليد `API_KEY` random 64-char hex
+- `.gitignore` — تجاهل `.claude/`, `.agents/`, `graphify-out/`, `skills-lock.json`
+
+### Verification (end-to-end)
+- ✅ Frontend HTML 200 + bundle يحمّل + `VITE_API_URL` و `VITE_API_KEY` مضمنين
+- ✅ Backend 9/9 critical endpoints 200 (scheduler, analytics×4, scans, seo×2, alerts)
+- ✅ Auth: 401 بدون key + 401 مع key خاطئ + 200 مع key صحيح
+- ✅ CORS: Allow-Origin = frontend exact match + يرفض origin غير موثوق
+- ✅ Firestore connected, 10 brands في DB
+
+### Known minor (غير حرج)
+- `GET /api/seo/scans` بدون `?brand=` يرجع 500 بدلاً من 400 — legacy endpoint، الـ frontend ما يستعمله بدون brand
+
+---
+
 ## [2026-05-18] — Session 24: Dashboard 500 fix (composite-index bypass)
 
 ### ✅ Fix: `/api/analytics?brand=...` returned 500 for brands without pre-aggregated summaries
