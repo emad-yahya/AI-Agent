@@ -354,22 +354,40 @@ Return ONLY a JSON array — no markdown, no commentary. Exact format:
 
 Suggest 3 to 5 specific, narrow market categories this brand most likely competes in.
 
-Rules:
-- Be specific: "Dubai real estate broker" not "real estate"; "vegan protein powder" not "supplements"
-- Each category should be something a real customer would research on ChatGPT/Gemini/Perplexity
-- Distinct from each other (different angles, not synonyms)
+HARD RULES (a violation makes the suggestion useless):
+- NEVER include the brand name "${brand}" (or any variation of it) in any category. Categories describe the MARKET, not the brand itself.
+- Phrase each category from the END CUSTOMER'S perspective — what a buyer/renter/user would type into ChatGPT looking for options. NOT analytical/B2B/research framings.
+  Good: "dubai luxury apartment broker", "vegan protein powder for women"
+  Bad:  "dubai real estate market analysis", "supplement industry report"
+- Be specific (include geography, audience, or sub-segment when relevant):
+  Good: "dubai real estate broker", "off-plan property advisor dubai"
+  Bad:  "real estate", "property" (too broad — AI engines will only name global giants like Zillow/Redfin and the brand has zero chance to appear)
+- Distinct from each other (different angles or sub-segments, not synonyms)
 - Lowercase, 2 to 6 words each
-- If the brand name is ambiguous, cover the most likely interpretations
 
 Return ONLY a JSON array of strings, no markdown, no commentary.
-Example: ["dubai luxury real estate broker", "dubai off-plan property advisor", "dubai apartment broker for expats"]`;
+Example for a Dubai real estate broker brand:
+["dubai luxury real estate broker", "off-plan property advisor dubai", "palm jumeirah villa broker", "dubai apartment broker for expats"]`;
 
     try {
       const raw = await this.generateText(llmPrompt);
       const parsed = this.parseStringArray(raw);
+      // Strip any category that leaks the brand name (Gemini violates the
+      // "no brand in category" rule ~25% of the time despite explicit prompt).
+      const brandLower = brand.trim().toLowerCase();
+      const brandTokens = brandLower.split(/\s+/).filter((t) => t.length >= 3);
       const trimmed = parsed
         .map((s) => s.trim())
         .filter((s) => s.length >= 2 && s.length <= 80)
+        .filter((s) => {
+          const sl = s.toLowerCase();
+          if (sl.includes(brandLower)) return false;
+          // Reject if every multi-char brand token appears in the category
+          if (brandTokens.length > 0 && brandTokens.every((t) => sl.includes(t))) {
+            return false;
+          }
+          return true;
+        })
         .slice(0, 5);
       if (trimmed.length >= 3) {
         this.categorySuggestCache.set(key, trimmed);
