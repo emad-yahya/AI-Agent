@@ -41,10 +41,9 @@ export class AIService {
   private readonly concurrency: number;
   private readonly delayMs: number;
 
-  // Cache of generated prompts per category (in-memory, survives until restart)
-  private readonly promptCache = new Map<string, PromptTemplate[]>();
-
   // Cache of suggested categories per brand (in-memory)
+  // Note: scan prompts intentionally NOT cached — variance across scans is
+  // more valuable than the cost saving.
   private readonly categorySuggestCache = new Map<string, string[]>();
 
   constructor(private config: ConfigService) {
@@ -285,27 +284,52 @@ export class AIService {
   }
 
   /**
-   * Generates category-tailored search prompts via LLM.
-   * Cached per normalized category so we only pay once per category.
+   * Generates scenario-rich client-intent prompts via LLM.
+   *
+   * Mental model: the "category" describes the brand's identity (e.g. "Dubai
+   * real estate broker"). A real customer doesn't type the category itself —
+   * they type a concrete need ("rent 2BR in JVC under 90k AED"). To measure
+   * real visibility we must mimic those concrete needs.
+   *
+   * The LLM is asked to:
+   *   1. infer the typical services a business in this category offers,
+   *   2. for each of the 5 intent buckets (best_in_category, top_alternatives,
+   *      brand_reputation, buying_advice, market_leaders), generate ONE
+   *      prompt anchored to a different concrete service + scenario (location,
+   *      budget, sub-type) so the 5 prompts collectively probe the category.
+   *
+   * Not cached — variance across scans is more valuable than the trivial
+   * cost saving (one Gemini call per scan).
    * Falls back to static SEARCH_PROMPTS on any failure.
    */
   async generateCategoryPrompts(category: string): Promise<PromptTemplate[]> {
     const key = category.trim().toLowerCase();
     if (!key) return SEARCH_PROMPTS.slice(0, this.maxPrompts);
 
-    const cached = this.promptCache.get(key);
-    if (cached) return cached;
+    const llmPrompt = `You are designing real customer questions for an AI visibility tracker.
 
-    const llmPrompt = `You are designing market-research questions for an AI visibility tracker.
+The brand's category is: "${category}"
 
-Generate exactly 5 diverse, natural-sounding questions that a real customer would type into ChatGPT/Gemini/Perplexity when researching the "${category}" market.
+STEP 1 (think silently, do not output):
+- List the typical services or offerings a business in this category provides.
+- For each service, think of a concrete scenario a real customer would describe to ChatGPT/Gemini/Perplexity when shopping for that service. Include details a real shopper mentions: location/neighborhood, budget range, sub-type, size, occasion, etc.
+- Pick 5 DIFFERENT services or scenarios so the questions span the category, not all about one slice.
 
-Requirements:
-- Each question must read like a real human typed it (conversational, specific, not a template)
-- 2 questions MUST include the literal placeholder {brand} where the brand name goes
-- 3 questions MUST NOT mention any brand (pure category-level questions)
-- Questions should encourage the AI to name specific companies/products in its answer
-- Cover 5 distinct intents — best in category, alternatives, brand reputation, buying advice, market leaders
+STEP 2 (output): produce exactly 5 prompts mapped to these 5 intent buckets. Each prompt must be anchored to ONE of the 5 different concrete scenarios from step 1.
+
+Intent buckets:
+1. best_in_category   — pure shopper question, NO brand mentioned. Format: "I need <service> in <location>, budget <amount>, who are the best <category> for this?"
+2. top_alternatives   — shopper compares options, MUST contain literal {brand}. Format: "Besides {brand}, who else handles <specific service> in <location/segment>?"
+3. brand_reputation   — shopper asks about brand for a specific need, MUST contain literal {brand}. Format: "How is {brand} for <specific service + scenario>? Anyone used them?"
+4. buying_advice      — shopper asks for guidance for a specific scenario, NO brand. Format: "I'm <persona> looking to <action> <thing> in <location/segment>. Which providers should I shortlist?"
+5. market_leaders     — shopper asks who dominates a sub-segment, NO brand. Format: "Who are the biggest names in <sub-segment + location> for <service>?"
+
+HARD RULES:
+- Each prompt MUST include concrete, plausible specifics (neighborhood name, budget number, property type, audience, etc.). Vague prompts are wrong.
+- The 5 specifics MUST be different scenarios (don't anchor all 5 to "rent apartment Marina").
+- Buckets 1, 4, 5 MUST NOT contain brand placeholders. Buckets 2 and 3 MUST contain the literal token {brand}.
+- Conversational tone, first person, like a real shopper typing on their phone.
+- {category} placeholder is NOT required in the text — bake the category meaning into the scenario.
 
 Return ONLY a JSON array — no markdown, no commentary. Exact format:
 [
@@ -320,9 +344,8 @@ Return ONLY a JSON array — no markdown, no commentary. Exact format:
       const raw = await this.generateText(llmPrompt);
       const parsed = this.parsePromptJson(raw);
       if (parsed.length === 5) {
-        this.promptCache.set(key, parsed);
         this.logger.log(
-          `Generated ${parsed.length} category-specific prompts for "${category}"`,
+          `Generated ${parsed.length} scenario-rich prompts for "${category}"`,
         );
         return parsed;
       }
