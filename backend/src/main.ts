@@ -5,9 +5,10 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const logger = new Logger(NestApplication.name);
   const app = await NestFactory.create(AppModule);
-  app.enableCors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
-  });
+  const frontendUrl = (
+    process.env.FRONTEND_URL ?? 'http://localhost:5173'
+  ).replace(/\/+$/, '');
+  app.enableCors({ origin: frontendUrl });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   app.setGlobalPrefix('api');
 
