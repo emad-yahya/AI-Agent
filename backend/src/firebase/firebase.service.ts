@@ -80,6 +80,10 @@ export class FirebaseService implements OnModuleInit {
     return this.seoSites().doc(siteId).collection('scans');
   }
 
+  listicleGapScans(brandId: string) {
+    return this.brands().doc(brandId).collection('listicleGapScans');
+  }
+
   alertSettings(brandId: string) {
     return this.brands().doc(brandId).collection('config').doc('alerts');
   }

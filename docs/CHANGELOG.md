@@ -2,6 +2,41 @@
 
 ---
 
+## [2026-05-18] — Session 28: Listicle Gap Finder (GEO Tier 1 #2)
+
+### Goal
+Replace LLM guesswork with real data. Find the exact articles where competitors are mentioned but the user's brand is not — actionable list for PR outreach, guest posts, listicle inclusion.
+
+### Backend
+- New module `backend/src/listicle-gap/`:
+  - `dto.ts` — `CreateListicleGapDto` (brand + category + optional competitors + country)
+  - `listicle-gap.service.ts` — `createScan` returns immediately, runs in background:
+    1. `generateSearchQueries(category)` — Gemini gives 5 shopper-style queries, falls back to `best/top/recommendations/reviews/leading {category}` templates on failure
+    2. `collectOrganicResults` — Serper search top 10 results per query, dedupe by URL
+    3. `scrapeAndAnalyze` — fetch each URL with timeout (12s) + cheerio extract text + `containsTokenSafe()` brand-aware match (uses `brandVariations()` from parser, requires non-alphanumeric boundary so "Apple" ≠ "Pineapple"). Concurrency 4.
+    4. `buildCompetitorGaps` — per competitor: total articles, brand-also-mentioned, gap count, sample article URLs
+  - `listicle-gap.controller.ts` — `POST /api/listicle-gap/scan`, `GET /api/listicle-gap?brand=`, `GET /api/listicle-gap/:brandId/:scanId`
+  - `listicle-gap.module.ts` — imports `FirebaseModule`, `AIModule`, `SeoModule` (for `SerperService`)
+- `common/types.ts` — `ListicleArticle`, `CompetitorGap`, `ListicleGapScan` types
+- `firebase/firebase.service.ts` — `listicleGapScans(brandId)` collection helper
+- `seo/seo.module.ts` — `SerperService` added to exports so listicle module can inject it
+- `app.module.ts` — `ListicleGapModule` registered
+
+### Frontend
+- `api/client.ts` — `ListicleArticle`, `CompetitorGap`, `ListicleGapScan` types + `createListicleGapScan`, `getListicleGapScan`, `listListicleGapScans`
+- `components/ListicleGapPanel.tsx` (NEW) — auto-loads latest scan for brand on mount, "Run gap scan" button uses competitors from current AI scan's topics, polls every 3.5s while running. Renders: 3 stats (articles scanned, brand mention %, competitors tracked), expandable per-competitor cards with sample gap URLs, search queries used (collapsible)
+- `App.tsx` — `ListicleGapPanel` rendered after `CitationsPanel`
+
+### Data-driven principle (enforced)
+Every URL surfaced is real (from Google via Serper), every mention is verified by scraping the page itself. No LLM guesses about which articles to target. Gemini is used only to generate the search queries — not to invent the output.
+
+### Test plan
+- ✅ Backend: 63/63 jest pass
+- ✅ Backend + frontend: builds clean
+- ⏳ Pending live verification on Railway/Vercel after push: run gap scan on "Platinum Square" / "dubai real estate broker" with competitors from Session 26 scan
+
+---
+
 ## [2026-05-18] — Session 27: Citation Extractor (GEO Tier 1 #1)
 
 ### Goal

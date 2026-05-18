@@ -143,6 +143,42 @@ export interface SeoAnomaly {
   keywords?: string[];
 }
 
+export interface ListicleArticle {
+  url: string;
+  domain: string;
+  title: string;
+  query: string;
+  position: number;
+  mentionsBrand: boolean;
+  competitorsFound: string[];
+}
+
+export interface CompetitorGap {
+  competitor: string;
+  totalArticles: number;
+  brandAlsoMentioned: number;
+  gapArticles: number;
+  sampleArticles: Array<{ url: string; domain: string; title: string }>;
+}
+
+export interface ListicleGapScan {
+  id?: string;
+  brandId: string;
+  brand: string;
+  category: string;
+  scanId?: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: firestore.Timestamp;
+  completedAt?: firestore.Timestamp;
+  queries: string[];
+  competitors: string[];
+  articles?: ListicleArticle[];
+  competitorGaps?: CompetitorGap[];
+  brandCoveragePercent?: number;
+  totalArticles?: number;
+  brandMentionedCount?: number;
+}
+
 export interface SeoSiteScan {
   id?: string;
   siteId: string;

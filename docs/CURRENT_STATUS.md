@@ -1,5 +1,39 @@
 # CURRENT_STATUS.md
-_آخر تحديث: 2026-05-18 (Session 27)_
+_آخر تحديث: 2026-05-18 (Session 28)_
+
+## 🎯 GEO Vision — الهدف النهائي
+السستم يجب أن يتحول من **يقيس** visibility إلى **يحسّن** ranking على AI engines، بحيث أي عميل يسأل ChatGPT/Gemini/Perplexity عن أي شي له علاقة بمجال البراند → اسم البراند يطلع باول النتائج.
+
+**المبدأ الأساسي:** كل توصية يجب أن تكون مبنية على **بيانات حقيقية** (scrape فعلي، Serper data، schema audit حقيقي) — **صفر تخمين من LLM**. تخمين Gemini يستخدم فقط لـترتيب الـactions الحقيقية بأولوية، لا لـاختراعها.
+
+## خارطة طريق GEO Tier 1 (data-driven)
+| # | Feature | الحالة | شو يفعل |
+|---|---|---|---|
+| 1 | Citation Extractor | ✅ Session 27 | يستخرج URLs اللي Gemini grounding قراها لكل scan |
+| 2 | **Listicle Gap Finder** | 🟡 **جاري — Session 28** | Serper search على "best X in Y" → scrape أول 20 نتيجة → يحدد مقالات تذكر منافسيك وما تذكرك |
+| 3 | Competitor Site Fingerprint (Schema/llms.txt Audit) | ⬜ Tier 1 #3 | Crawl موقع كل منافس + الموقع تبعك، مقارنة schemas + llms.txt + robots/AI-bots + indexed pages |
+| 4 | Backlink Gap | ⬜ Tier 1 #4 (يحتاج Ahrefs/DataForSEO API ~$50/mo) | من يلينك للمنافس وما يلينك لك |
+| 5 | Data-driven Recommendations | ⬜ Tier 1 #5 | استبدال generic Gemini recs بـactions حقيقية مرتبة بأولوية، كل توصية لها مصدر بيانات قابل للنقر |
+
+---
+
+### [2026-05-18] Session 28 — Listicle Gap Finder (Tier 1 #2)
+
+**ليه:**
+عند scan، السستم يطلع منافسين بـTopics + citation URLs. لكن المستخدم ما يعرف **أي مقالة بالضبط** تذكر المنافس وما تذكره. Listicle Gap Finder يحلّ هذا — يعطي قائمة محددة بـ "هاي 14 مقال يذكرون Bayut + 0 يذكرونك، تواصل بهذا الترتيب".
+
+**التطبيق (المخطط):**
+- Gemini يولد 5 search queries حسب الكاتغوري (مثل "best dubai real estate brokers", "top property agents dubai")
+- لكل query: Serper بيرجع أول 20 نتيجة organic
+- لكل URL: fetch HTML + cheerio يستخرج النص
+- يكشف ذكر البراند + المنافسين الموجودين بـscan الأخير (باستخدام `brandVariations` من parser.ts)
+- يبني جدول gap: مقالات تذكر منافسك وما تذكرك
+- Persistence: Firestore collection `listicleGapScans`
+- Frontend: panel جديد `ListicleGapPanel` ضمن نتائج scan
+
+**جاي:** Tier 1 #3 Schema Audit.
+
+---
 
 **🟢 LIVE في prod**
 - Frontend: https://ai-agent-frontend-two-eosin.vercel.app (Vercel)

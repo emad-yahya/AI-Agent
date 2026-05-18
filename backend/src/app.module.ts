@@ -10,6 +10,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { SeoModule } from './seo/seo.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { ListicleGapModule } from './listicle-gap/listicle-gap.module';
 import { ApiKeyMiddleware } from './auth/api-key.middleware';
 
 const redisUrl = process.env.REDIS_URL;
@@ -41,6 +42,7 @@ const redisUrl = process.env.REDIS_URL;
     SchedulerModule,
     SeoModule,
     AlertsModule,
+    ListicleGapModule,
   ],
 })
 export class AppModule implements NestModule {

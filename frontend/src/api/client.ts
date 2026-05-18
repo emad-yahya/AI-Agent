@@ -282,6 +282,41 @@ export interface PromptCoverageResponse {
   coverage: PromptCoverageRow[];
 }
 
+export interface ListicleArticle {
+  url: string;
+  domain: string;
+  title: string;
+  query: string;
+  position: number;
+  mentionsBrand: boolean;
+  competitorsFound: string[];
+}
+
+export interface CompetitorGap {
+  competitor: string;
+  totalArticles: number;
+  brandAlsoMentioned: number;
+  gapArticles: number;
+  sampleArticles: Array<{ url: string; domain: string; title: string }>;
+}
+
+export interface ListicleGapScan {
+  id?: string;
+  brandId: string;
+  brand: string;
+  category: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: string | { seconds: number };
+  completedAt?: string | { seconds: number };
+  queries: string[];
+  competitors: string[];
+  articles?: ListicleArticle[];
+  competitorGaps?: CompetitorGap[];
+  brandCoveragePercent?: number;
+  totalArticles?: number;
+  brandMentionedCount?: number;
+}
+
 export interface ScanProgressEvent {
   type: 'progress' | 'done' | 'error';
   completed?: number;
@@ -446,6 +481,33 @@ export const api = {
 
   getPromptCoverage: async (brand: string) => {
     const res = await http.get<PromptCoverageResponse>('/analytics/coverage', { params: { brand } });
+    return res.data;
+  },
+
+  createListicleGapScan: async (
+    brand: string,
+    category: string,
+    competitors?: string[],
+    country?: string,
+  ) => {
+    const res = await http.post<{ scanId: string; brandId: string }>(
+      '/listicle-gap/scan',
+      { brand, category, competitors, country },
+    );
+    return res.data;
+  },
+
+  getListicleGapScan: async (brandId: string, scanId: string) => {
+    const res = await http.get<ListicleGapScan>(
+      `/listicle-gap/${brandId}/${scanId}`,
+    );
+    return res.data;
+  },
+
+  listListicleGapScans: async (brand: string) => {
+    const res = await http.get<ListicleGapScan[]>('/listicle-gap', {
+      params: { brand },
+    });
     return res.data;
   },
 
