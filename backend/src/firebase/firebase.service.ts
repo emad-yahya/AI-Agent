@@ -22,6 +22,17 @@ export class FirebaseService implements OnModuleInit {
       process.env.FIREBASE_SERVICE_ACCOUNT_JSON ??
       process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
+    const firebaseVars = Object.keys(process.env).filter((k) =>
+      k.startsWith('FIREBASE_') || k.startsWith('GOOGLE_'),
+    );
+    this.logger.log(
+      `Firebase env diagnostic — FIREBASE_SERVICE_ACCOUNT_JSON length: ${
+        process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.length ?? 'undefined'
+      }, GOOGLE_APPLICATION_CREDENTIALS_JSON length: ${
+        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON?.length ?? 'undefined'
+      }, matching env var names: [${firebaseVars.join(', ')}]`,
+    );
+
     if (jsonEnv && jsonEnv.trim().length > 0) {
       try {
         const parsed = JSON.parse(jsonEnv);
