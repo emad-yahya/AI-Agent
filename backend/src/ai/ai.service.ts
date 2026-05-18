@@ -12,10 +12,17 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI, Tool } from '@google/generative-ai';
 
+export type ScanMode = 'quick' | 'full';
+
 export interface ScanInput {
   brand: string;
   category: string;
+  mode?: ScanMode;
 }
+
+// Full scan = 30 prompts spanning the category (6 per intent bucket).
+// Quick scan uses AI_MAX_PROMPTS env (default 5).
+const FULL_SCAN_PROMPT_COUNT = 30;
 
 export interface RawResult {
   engine: Engine;
@@ -406,7 +413,10 @@ Example for a Dubai real estate broker brand:
           const sl = s.toLowerCase();
           if (sl.includes(brandLower)) return false;
           // Reject if every multi-char brand token appears in the category
-          if (brandTokens.length > 0 && brandTokens.every((t) => sl.includes(t))) {
+          if (
+            brandTokens.length > 0 &&
+            brandTokens.every((t) => sl.includes(t))
+          ) {
             return false;
           }
           return true;
@@ -509,14 +519,150 @@ Example for a Dubai real estate broker brand:
     return ordered;
   }
 
+  /**
+   * Full GEO scan: 30 scenario-rich prompts spanning the category.
+   * Distribution: 6 prompts per intent bucket × 5 buckets = 30.
+   * Each prompt is anchored to a DIFFERENT concrete scenario (service +
+   * location + budget/persona) so the scan probes the brand's full market
+   * coverage, not just 5 sample queries.
+   * Not cached — variance across scans matters more than the trivial saving.
+   */
+  async generateScenarioPrompts(
+    category: string,
+    count: number,
+  ): Promise<PromptTemplate[]> {
+    const trimmed = category.trim();
+    if (!trimmed) return SEARCH_PROMPTS.slice(0, count);
+    const target = Math.max(5, Math.min(count, 50));
+    const perBucket = Math.ceil(target / 5);
+    const required = AIService.REQUIRED_PROMPT_IDS;
+
+    const llmPrompt = `You are designing real customer queries for an AI visibility tracker.
+
+Category: "${category}"
+
+STEP 1 (think silently): list the typical services this category provides. Then think of ${target} concrete shopper scenarios — each anchored to a DIFFERENT combination of (service × location/neighborhood × budget/size × audience/occasion). Maximize variance.
+
+STEP 2 (output): produce exactly ${target} prompts distributed across these 5 intent buckets (${perBucket} prompts per bucket):
+1. best_in_category   — pure shopper question, NO brand mentioned
+2. top_alternatives   — shopper compares options, MUST contain literal {brand}
+3. brand_reputation   — shopper asks about a brand for a scenario, MUST contain literal {brand}
+4. buying_advice      — shopper asks for guidance, NO brand
+5. market_leaders     — shopper asks who dominates a sub-segment, NO brand
+
+Hard rules for each prompt:
+- Anchor to ONE concrete scenario (neighborhood name, budget number, property type, persona, time horizon, etc.)
+- Conversational first-person, like a real shopper typing on phone
+- Within a bucket, the ${perBucket} prompts MUST span different scenarios (don't repeat the same neighborhood + service combo)
+- Buckets 1, 4, 5 must NOT contain the {brand} token. Buckets 2 and 3 MUST contain {brand}
+- {category} placeholder NOT required — bake category meaning into the scenario
+
+Return ONLY a JSON array of ${target} objects, no markdown, no commentary. Each object: {"id":"<bucket_id>","category":"<bucket_id>","text":"..."}`;
+
+    try {
+      const raw = await this.generateText(llmPrompt);
+      const parsed = this.parseScenarioArray(raw, target);
+      if (parsed.length >= target * 0.6) {
+        this.logger.log(
+          `Generated ${parsed.length} scenario prompts for "${category}" (full scan)`,
+        );
+        return parsed;
+      }
+      this.logger.warn(
+        `Scenario generator returned ${parsed.length}/${target} prompts for "${category}" — padding with fallback`,
+      );
+      const fallback = SEARCH_PROMPTS.flatMap((t) =>
+        Array.from({ length: perBucket }, (_, i) => ({
+          ...t,
+          id: t.id,
+          text: t.text + (i === 0 ? '' : ' '),
+        })),
+      ).slice(0, target);
+      const merged = [...parsed];
+      for (const f of fallback) {
+        if (merged.length >= target) break;
+        merged.push(f);
+      }
+      return merged;
+    } catch (err) {
+      this.logger.warn(
+        `Scenario prompt generation failed for "${category}": ${(err as Error).message} — using fallback`,
+      );
+      const fallback = required
+        .flatMap((id) =>
+          Array.from({ length: perBucket }, () => {
+            const base = SEARCH_PROMPTS.find((p) => p.id === id);
+            return base ?? SEARCH_PROMPTS[0];
+          }),
+        )
+        .slice(0, target);
+      return fallback;
+    }
+  }
+
+  /**
+   * Parses LLM scenario response. Unlike parsePromptJson, keeps MULTIPLE
+   * prompts per intent ID (full scan = 6 per bucket).
+   */
+  private parseScenarioArray(raw: string, target: number): PromptTemplate[] {
+    const cleaned = raw
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```$/i, '')
+      .trim();
+    const start = cleaned.indexOf('[');
+    const end = cleaned.lastIndexOf(']');
+    if (start === -1 || end === -1) return [];
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleaned.slice(start, end + 1));
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+
+    const required = AIService.REQUIRED_PROMPT_IDS;
+    const validIds = new Set<string>(required);
+    const seenText = new Set<string>();
+    const out: PromptTemplate[] = [];
+    for (const item of parsed) {
+      if (
+        !item ||
+        typeof item !== 'object' ||
+        typeof (item as PromptTemplate).text !== 'string' ||
+        (item as PromptTemplate).text.length < 10
+      ) {
+        continue;
+      }
+      const incoming = item as PromptTemplate;
+      const id = validIds.has(incoming.id)
+        ? incoming.id
+        : required[out.length % required.length];
+      const text = incoming.text.trim();
+      if (seenText.has(text)) continue;
+      seenText.add(text);
+      out.push({ id, category: id, text });
+      if (out.length >= target) break;
+    }
+    return out;
+  }
+
   async runScan(
     input: ScanInput,
     onProgress?: (completed: number, total: number) => void,
   ): Promise<RawResult[]> {
     const allEngines = Object.keys(ENGINE_PERSONAS) as Engine[];
     const engines = allEngines.slice(0, this.maxEngines);
-    const generated = await this.generateCategoryPrompts(input.category);
-    const promptTemplates = generated.slice(0, this.maxPrompts);
+    const mode = input.mode ?? 'quick';
+    const generated =
+      mode === 'full'
+        ? await this.generateScenarioPrompts(
+            input.category,
+            FULL_SCAN_PROMPT_COUNT,
+          )
+        : await this.generateCategoryPrompts(input.category);
+    const cap = mode === 'full' ? FULL_SCAN_PROMPT_COUNT : this.maxPrompts;
+    const promptTemplates = generated.slice(0, cap);
 
     const tasks = promptTemplates.flatMap((template) =>
       engines.map(

@@ -1,10 +1,26 @@
 # CURRENT_STATUS.md
-_آخر تحديث: 2026-05-18 (Session 25)_
+_آخر تحديث: 2026-05-18 (Session 26)_
 
 **🟢 LIVE في prod**
 - Frontend: https://ai-agent-frontend-two-eosin.vercel.app (Vercel)
 - Backend: https://backend-production-e169.up.railway.app (Railway)
 - GitHub: emad-yahya/AI-Agent (main)
+
+---
+
+### [2026-05-18] Session 26 — Quick Scan + Full GEO Scan
+
+**الهدف الكبير (GEO product vision):**
+- البراند = الكاتغوري نفسها. أي شخص يسرش على AI عن أي شي له علاقة بالكاتغوري (خدمة معينة، موقع، badget، بديل، مراجعة) لازم اسم البراند يطلع.
+- علشان نقيس هذا، الـ scan ما يكفي يكون 5 أسئلة عامة. لازم يغطي scenarios حقيقية متعددة (services × locations × budgets × personas).
+
+**التطبيق:**
+- **Quick Scan (default):** 5 prompts × 3 engines = 15 calls (~1 min). spot-check سريع.
+- **Full GEO Scan:** 30 prompts × 3 engines = 90 calls (~6 min). 6 prompts per intent bucket × 5 buckets، كل prompt مربوط بسيناريو ملموس مختلف (حي + ميزانية + نوع + persona).
+- Toggle بالـ ScanForm UI، الـ progress bar يعرف total تلقائياً.
+- `Scan.mode` بيتخزن على Firestore لكل scan (للـ analytics المستقبلية).
+
+**جاهز للتعليق على Railway/Vercel بمجرد push.**
 
 ---
 

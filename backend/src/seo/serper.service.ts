@@ -81,7 +81,11 @@ export class SerperService {
       return (await res.json()) as SerperResponse;
     } catch (err) {
       const isAbort = (err as Error)?.name === 'AbortError';
-      if ((isAbort || (err as { code?: string })?.code === 'UND_ERR_CONNECT_TIMEOUT') && attempt < 2) {
+      if (
+        (isAbort ||
+          (err as { code?: string })?.code === 'UND_ERR_CONNECT_TIMEOUT') &&
+        attempt < 2
+      ) {
         this.logger.warn(
           `Serper timeout for "${query}" — retry ${attempt + 1}/2`,
         );

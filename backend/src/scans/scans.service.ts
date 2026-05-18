@@ -38,16 +38,20 @@ export class ScansService {
   async createScan(dto: CreateScanDto) {
     const brandRef = await this.getOrCreateBrand(dto.brand, dto.category);
     const brandId = brandRef.id;
+    const mode = dto.mode ?? 'quick';
 
     const scanRef = this.firebase.scans(brandId).doc();
     const scanId = scanRef.id;
     await scanRef.set({
       brandId,
       status: 'running',
+      mode,
       createdAt: this.firebase.now(),
     } as Scan);
 
-    this.logger.log(`Scan created: ${scanId} for brand: ${dto.brand}`);
+    this.logger.log(
+      `Scan created: ${scanId} for brand: ${dto.brand} (mode=${mode})`,
+    );
 
     if (this.queue) {
       await this.queue.add(SCAN_JOB, {
@@ -55,6 +59,7 @@ export class ScansService {
         brandId,
         brand: dto.brand,
         category: dto.category,
+        mode,
       });
       this.logger.log(`Scan ${scanId} queued via BullMQ`);
     } else {
@@ -73,7 +78,7 @@ export class ScansService {
 
     try {
       const rawResults = await this.ai.runScan(
-        { brand: dto.brand, category: dto.category },
+        { brand: dto.brand, category: dto.category, mode: dto.mode ?? 'quick' },
         (completed, total) => {
           this.scanEvents.emit(scanId, { type: 'progress', completed, total });
         },

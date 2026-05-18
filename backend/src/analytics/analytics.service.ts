@@ -276,7 +276,8 @@ export class AnalyticsService {
           (r) =>
             r.engine === engine &&
             (r.templateId === intent.templateId ||
-              (!r.templateId && r.prompt.toLowerCase().includes(intent.keyword))),
+              (!r.templateId &&
+                r.prompt.toLowerCase().includes(intent.keyword))),
         );
         byEngine[engine] = result != null ? result.mentioned : null;
       }

@@ -33,7 +33,9 @@ export class ScanController {
     if (!brand || brand.trim().length < 2) {
       throw new BadRequestException('brand query param required (min 2 chars)');
     }
-    return this.ai.suggestCategories(brand).then((categories) => ({ categories }));
+    return this.ai
+      .suggestCategories(brand)
+      .then((categories) => ({ categories }));
   }
 
   @Post()

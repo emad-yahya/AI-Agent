@@ -14,8 +14,12 @@ export class ScanProcessor extends WorkerHost {
 
   async process(job: Job<ScanJobData>): Promise<void> {
     if (job.name !== SCAN_JOB) return;
-    const { scanId, brandId, brand, category } = job.data;
+    const { scanId, brandId, brand, category, mode } = job.data;
     this.logger.log(`Processing queued scan ${scanId} for brand ${brand}`);
-    await this.scans.runScanInBackground(scanId, brandId, { brand, category });
+    await this.scans.runScanInBackground(scanId, brandId, {
+      brand,
+      category,
+      mode,
+    });
   }
 }

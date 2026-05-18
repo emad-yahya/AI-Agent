@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, BASE_URL, type ScanProgressEvent } from "../api/client";
-import { Loader2, Radar, Sparkles, Wand2, Zap } from 'lucide-react';
+import { Loader2, Radar, Rocket, Sparkles, Wand2, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
@@ -8,10 +8,17 @@ interface Props {
 }
 
 type Phase = 'idle' | 'creating' | 'scanning' | 'loading';
+type Mode = 'quick' | 'full';
+
+const MODE_META: Record<Mode, { calls: number; eta: string; label: string; tagline: string }> = {
+    quick: { calls: 15, eta: '~1 min', label: 'Quick scan', tagline: '5 prompts · 3 engines · sample coverage' },
+    full: { calls: 90, eta: '~6 min', label: 'Full GEO scan', tagline: '30 prompts · 3 engines · wide market coverage' },
+};
 
 export function ScanForm({ onScanComplete }: Props) {
     const [brand, setBrand] = useState('');
     const [category, setCategory] = useState('');
+    const [mode, setMode] = useState<Mode>('quick');
     const [phase, setPhase] = useState<Phase>('idle');
     const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -48,7 +55,7 @@ export function ScanForm({ onScanComplete }: Props) {
         setProgress(null);
 
         try {
-            const { scanId, brandId } = await api.createScan(brand.trim(), category.trim());
+            const { scanId, brandId } = await api.createScan(brand.trim(), category.trim(), mode);
             setPhase('scanning');
 
             await new Promise<void>((resolve, reject) => {
@@ -120,7 +127,7 @@ export function ScanForm({ onScanComplete }: Props) {
                         <Sparkles className="w-3 h-3" /> Live AI scan
                     </motion.span>
                     <span className="text-[10px] uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Zap className="w-3 h-3" /> ~60s · 15 calls
+                        <Zap className="w-3 h-3" /> {MODE_META[mode].eta} · {MODE_META[mode].calls} calls
                     </span>
                 </div>
 
@@ -132,6 +139,39 @@ export function ScanForm({ onScanComplete }: Props) {
                 </p>
 
                 <div className="mt-6 flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.14em]">Scan depth</span>
+                        <div className="grid grid-cols-2 gap-2">
+                            {(['quick', 'full'] as Mode[]).map((m) => {
+                                const meta = MODE_META[m];
+                                const active = mode === m;
+                                const Icon = m === 'quick' ? Zap : Rocket;
+                                return (
+                                    <motion.button
+                                        key={m}
+                                        type="button"
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={() => setMode(m)}
+                                        disabled={isLoading}
+                                        className={`relative text-left rounded-[var(--radius-control)] border px-3.5 py-3 transition-all ${active
+                                            ? 'border-transparent bg-gradient-to-br from-indigo-500/10 via-fuchsia-500/10 to-pink-500/10 shadow-[0_4px_16px_-6px_rgba(99,102,241,0.35)] ring-2 ring-fuchsia-400/40'
+                                            : 'border-slate-200 bg-white hover:border-fuchsia-300 hover:shadow-sm'
+                                            } disabled:opacity-60 disabled:cursor-not-allowed`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Icon className={`w-4 h-4 ${active ? 'text-fuchsia-600' : 'text-slate-500'}`} />
+                                            <span className={`text-sm font-semibold ${active ? 'text-slate-900' : 'text-slate-700'}`}>{meta.label}</span>
+                                            <span className={`ml-auto text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${active ? 'bg-fuchsia-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                {meta.eta}
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 leading-snug">{meta.tagline}</p>
+                                    </motion.button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Field
                             label="Brand name"

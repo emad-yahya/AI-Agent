@@ -2,6 +2,43 @@
 
 ---
 
+## [2026-05-18] — Session 26: Quick Scan + Full GEO Scan modes
+
+### Goal
+Brand identity = category. Whenever anyone searches AI for anything category-related (services, locations, alternatives, reviews) the brand should appear. Quick Scan (5 prompts) for fast spot-check; Full GEO Scan (30 prompts) for wide coverage across services × locations × budgets × personas.
+
+### Backend changes
+- `backend/src/ai/ai.service.ts`
+  - `ScanInput.mode?: 'quick' | 'full'` (default `quick`)
+  - `generateScenarioPrompts(category, count)` — generates 30 scenario-rich prompts distributed 6 per intent bucket × 5 buckets, anchored to DIFFERENT concrete scenarios (neighborhood + budget + sub-type + persona) to maximize variance
+  - `parseScenarioArray()` — keeps multiple prompts per intent ID (vs `parsePromptJson` which collapses to 5)
+  - `runScan()` branches on mode: full → 30 prompts × 3 engines = 90 calls; quick → unchanged
+  - Fallback pads with `SEARCH_PROMPTS` if LLM returns <60% of target
+- `backend/src/common/types.ts` — `ScanMode` export + `Scan.mode?` field persisted on Firestore doc
+- `backend/src/scans/dto.ts` — `CreateScanDto.mode?` validated `@IsIn(['quick','full'])`
+- `backend/src/scans/scan-queue.constants.ts` — `ScanJobData.mode?`
+- `backend/src/scans/scan.processor.ts` — forwards `mode` from queue to `runScanInBackground`
+- `backend/src/scans/scans.service.ts` — persists `mode` on scan doc, passes to queue + `ai.runScan`
+
+### Frontend changes
+- `frontend/src/api/client.ts` — `createScan(brand, category, mode = 'quick')`
+- `frontend/src/components/ScanForm.tsx`
+  - `Mode` state + 2-tile toggle UI (Quick / Full GEO) with icon + ETA badge + tagline
+  - Active tile = ring + gradient bg; disabled while scanning
+  - Header ETA badge mirrors selected mode (~1 min · 15 calls / ~6 min · 90 calls)
+  - Progress bar reads server-emitted `total` so it works for both modes automatically
+
+### Test plan
+- ✅ Backend: 63/63 jest pass (existing tests untouched, default quick path)
+- ✅ Backend: `npm run build` clean
+- ✅ Frontend: `npm run build` clean
+
+### Pending verification (after deploy)
+- Run a Full scan against "Platinum Square" / "dubai real estate broker" → expect 90 results spanning multiple JVC/Marina/Palm scenarios; coverage map shows all 5 buckets lit
+- Confirm Gemini free tier holds at 90 calls (throttled by AI_DELAY_MS=8000, concurrency=2)
+
+---
+
 ## [2026-05-18] — Session 25: Production deploy — Vercel (frontend) + Railway (backend)
 
 ### ✅ Deployed to production

@@ -1,6 +1,7 @@
 import { firestore } from 'firebase-admin';
 
 export type ScanStatus = 'pending' | 'running' | 'done' | 'failed';
+export type ScanMode = 'quick' | 'full';
 export type Sentiment = 'positive' | 'neutral' | 'negative';
 export type Engine = 'chatgpt-style' | 'gemini-style' | 'perplexity-style';
 
@@ -34,6 +35,7 @@ export interface Scan {
   id?: string;
   brandId: string;
   status: ScanStatus;
+  mode?: ScanMode;
   createdAt: firestore.Timestamp;
   completedAt?: firestore.Timestamp;
   recommendations?: Recommendation[];

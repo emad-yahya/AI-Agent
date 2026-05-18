@@ -295,8 +295,16 @@ export const BASE_URL =
 // api calls
 
 export const api = {
-  createScan: async (brand: string, category: string) => {
-    const res = await http.post<CreateScanResponse>("/scans", { brand, category });
+  createScan: async (
+    brand: string,
+    category: string,
+    mode: 'quick' | 'full' = 'quick',
+  ) => {
+    const res = await http.post<CreateScanResponse>("/scans", {
+      brand,
+      category,
+      mode,
+    });
     return res.data;
   },
 

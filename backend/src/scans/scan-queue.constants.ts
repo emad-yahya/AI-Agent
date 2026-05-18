@@ -6,4 +6,5 @@ export interface ScanJobData {
   brandId: string;
   brand: string;
   category: string;
+  mode?: 'quick' | 'full';
 }
