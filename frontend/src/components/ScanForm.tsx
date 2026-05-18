@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, BASE_URL, type ScanProgressEvent } from "../api/client";
-import { Loader2, Radar, Sparkles, Zap } from 'lucide-react';
+import { Loader2, Radar, Sparkles, Wand2, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
@@ -15,8 +15,30 @@ export function ScanForm({ onScanComplete }: Props) {
     const [phase, setPhase] = useState<Phase>('idle');
     const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [suggestLoading, setSuggestLoading] = useState(false);
+    const lastSuggestedBrand = useRef<string>('');
 
     const isLoading = phase !== 'idle';
+
+    // Debounced category suggestions when brand changes
+    useEffect(() => {
+        const trimmed = brand.trim();
+        if (trimmed.length < 2 || trimmed.toLowerCase() === lastSuggestedBrand.current) return;
+        const handle = setTimeout(async () => {
+            lastSuggestedBrand.current = trimmed.toLowerCase();
+            setSuggestLoading(true);
+            try {
+                const cats = await api.suggestCategories(trimmed);
+                setSuggestions(cats);
+            } catch {
+                setSuggestions([]);
+            } finally {
+                setSuggestLoading(false);
+            }
+        }, 800);
+        return () => clearTimeout(handle);
+    }, [brand]);
 
     const handleSubmit = async () => {
         if (!brand.trim() || !category.trim()) return;
@@ -128,6 +150,50 @@ export function ScanForm({ onScanComplete }: Props) {
                             accent="from-cyan-500 to-blue-600"
                         />
                     </div>
+
+                    <AnimatePresence>
+                        {(suggestLoading || suggestions.length > 0) && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="flex flex-col gap-2"
+                            >
+                                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 uppercase tracking-wider font-semibold">
+                                    <Wand2 className="w-3 h-3 text-fuchsia-500" />
+                                    {suggestLoading ? 'AI is suggesting categories...' : 'Suggested categories for your brand'}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {suggestLoading ? (
+                                        <>
+                                            <span className="skeleton rounded-full h-7 w-32" />
+                                            <span className="skeleton rounded-full h-7 w-40" />
+                                            <span className="skeleton rounded-full h-7 w-36" />
+                                        </>
+                                    ) : (
+                                        suggestions.map((s) => {
+                                            const active = category.trim().toLowerCase() === s.toLowerCase();
+                                            return (
+                                                <motion.button
+                                                    key={s}
+                                                    type="button"
+                                                    whileTap={{ scale: 0.96 }}
+                                                    onClick={() => setCategory(s)}
+                                                    disabled={isLoading}
+                                                    className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-all ${active
+                                                        ? 'bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white border-transparent shadow-[0_4px_12px_-2px_rgba(99,102,241,0.45)]'
+                                                        : 'bg-white text-slate-700 border-slate-200 hover:border-fuchsia-300 hover:text-fuchsia-700 hover:shadow-sm'
+                                                        }`}
+                                                >
+                                                    {s}
+                                                </motion.button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <AnimatePresence>
                         {phase === 'scanning' && progress && (

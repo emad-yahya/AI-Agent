@@ -15,6 +15,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { Observable } from 'rxjs';
 import { ScansService } from './scans.service';
 import { ScanEventsService } from './scan-events.service';
+import { AIService } from 'src/ai/ai.service';
 import { CreateScanDto } from './dto';
 import { CompareDto } from './compare.dto';
 import { GenerateContentDto } from './generate-content.dto';
@@ -24,7 +25,16 @@ export class ScanController {
   constructor(
     private scans: ScansService,
     private scanEvents: ScanEventsService,
+    private ai: AIService,
   ) {}
+
+  @Get('suggest-categories')
+  suggestCategories(@Query('brand') brand: string) {
+    if (!brand || brand.trim().length < 2) {
+      throw new BadRequestException('brand query param required (min 2 chars)');
+    }
+    return this.ai.suggestCategories(brand).then((categories) => ({ categories }));
+  }
 
   @Post()
   @HttpCode(201)

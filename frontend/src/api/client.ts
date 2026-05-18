@@ -300,6 +300,14 @@ export const api = {
     return res.data;
   },
 
+  suggestCategories: async (brand: string) => {
+    const res = await http.get<{ categories: string[] }>(
+      "/scans/suggest-categories",
+      { params: { brand } },
+    );
+    return res.data.categories;
+  },
+
   getScan: async (brandId: string, scanId: string) => {
     const res = await http.get<ScanResponse>(`/scans/${brandId}/${scanId}`);
     return res.data;

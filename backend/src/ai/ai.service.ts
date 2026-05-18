@@ -44,6 +44,9 @@ export class AIService {
   // Cache of generated prompts per category (in-memory, survives until restart)
   private readonly promptCache = new Map<string, PromptTemplate[]>();
 
+  // Cache of suggested categories per brand (in-memory)
+  private readonly categorySuggestCache = new Map<string, string[]>();
+
   constructor(private config: ConfigService) {
     this.claude = new Anthropic({
       apiKey: this.config.get<string>('ANTHROPIC_API_KEY') ?? '',
@@ -333,6 +336,76 @@ Return ONLY a JSON array — no markdown, no commentary. Exact format:
     }
 
     return SEARCH_PROMPTS.slice(0, this.maxPrompts);
+  }
+
+  /**
+   * Suggest 3-5 narrow market categories for a brand. Cached per brand.
+   * Used by ScanForm so the user picks a precise category instead of
+   * typing a vague one that produces off-target prompts.
+   */
+  async suggestCategories(brand: string): Promise<string[]> {
+    const key = brand.trim().toLowerCase();
+    if (!key) return [];
+
+    const cached = this.categorySuggestCache.get(key);
+    if (cached) return cached;
+
+    const llmPrompt = `You help users set up an AI visibility tracker for the brand "${brand}".
+
+Suggest 3 to 5 specific, narrow market categories this brand most likely competes in.
+
+Rules:
+- Be specific: "Dubai real estate broker" not "real estate"; "vegan protein powder" not "supplements"
+- Each category should be something a real customer would research on ChatGPT/Gemini/Perplexity
+- Distinct from each other (different angles, not synonyms)
+- Lowercase, 2 to 6 words each
+- If the brand name is ambiguous, cover the most likely interpretations
+
+Return ONLY a JSON array of strings, no markdown, no commentary.
+Example: ["dubai luxury real estate broker", "dubai off-plan property advisor", "dubai apartment broker for expats"]`;
+
+    try {
+      const raw = await this.generateText(llmPrompt);
+      const parsed = this.parseStringArray(raw);
+      const trimmed = parsed
+        .map((s) => s.trim())
+        .filter((s) => s.length >= 2 && s.length <= 80)
+        .slice(0, 5);
+      if (trimmed.length >= 3) {
+        this.categorySuggestCache.set(key, trimmed);
+        this.logger.log(
+          `Suggested ${trimmed.length} categories for "${brand}"`,
+        );
+        return trimmed;
+      }
+      this.logger.warn(
+        `Category suggester returned ${trimmed.length} items for "${brand}" — returning what we have`,
+      );
+      return trimmed;
+    } catch (err) {
+      this.logger.warn(
+        `Category suggestion failed for "${brand}": ${(err as Error).message}`,
+      );
+      return [];
+    }
+  }
+
+  private parseStringArray(raw: string): string[] {
+    const cleaned = raw
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```$/i, '')
+      .trim();
+    const start = cleaned.indexOf('[');
+    const end = cleaned.lastIndexOf(']');
+    if (start === -1 || end === -1) return [];
+    try {
+      const parsed: unknown = JSON.parse(cleaned.slice(start, end + 1));
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((x): x is string => typeof x === 'string');
+    } catch {
+      return [];
+    }
   }
 
   // Canonical IDs keep Coverage Map + analytics aligned across dynamic prompts
