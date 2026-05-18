@@ -28,27 +28,27 @@ export const SEARCH_PROMPTS: PromptTemplate[] = [
   {
     id: 'best_in_category',
     category: 'recommendation',
-    text: 'What are the best brands in the {category} industry right now?',
+    text: "I'm researching the {category} market. List the top 5 brands or companies considered the best right now. Use their actual names and explain why each one stands out.",
   },
   {
     id: 'top_alternatives',
     category: 'alternatives',
-    text: 'What are the top alternatives to {brand} that I should consider?',
+    text: "I'm currently looking at {brand} for {category} but want to compare options. What are the most popular alternatives or direct competitors to {brand}? List at least 3-5 specific company names with a one-line reason for each.",
   },
   {
     id: 'brand_reputation',
     category: 'reputation',
-    text: 'Is {brand} a good company? What do people think about them?',
+    text: "Tell me about {brand} in the {category} space. What's their reputation, what do customers say about them, and what are they known for? Be specific.",
   },
   {
     id: 'buying_advice',
     category: 'buying',
-    text: 'I am looking for a reliable product in the {category} space. What would you recommend?',
+    text: 'I need to choose a {category} provider and want a real recommendation, not a generic list. Which specific companies would you personally recommend and why? Name names.',
   },
   {
     id: 'market_leaders',
     category: 'market',
-    text: 'Who are the market leaders in {category} and why?',
+    text: 'Which companies currently dominate the {category} market? Name the top 3-5 market leaders and briefly explain how each one achieved their position.',
   },
 ];
 

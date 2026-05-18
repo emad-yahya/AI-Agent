@@ -36,6 +36,30 @@ export class FirebaseService implements OnModuleInit {
     return this.scans(brandId).doc(scanId).collection('results');
   }
 
+  scanSummaries(brandId: string) {
+    return this.brands().doc(brandId).collection('scanSummaries');
+  }
+
+  seoScans(brandId: string) {
+    return this.brands().doc(brandId).collection('seoScans');
+  }
+
+  seoSites() {
+    return this.db.collection('seoSites');
+  }
+
+  seoSiteScans(siteId: string) {
+    return this.seoSites().doc(siteId).collection('scans');
+  }
+
+  alertSettings(brandId: string) {
+    return this.brands().doc(brandId).collection('config').doc('alerts');
+  }
+
+  schedulerConfig() {
+    return this.db.collection('config').doc('scheduler');
+  }
+
   now() {
     return admin.firestore.Timestamp.now();
   }

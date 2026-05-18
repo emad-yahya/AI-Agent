@@ -11,7 +11,7 @@ Built as a portfolio project to demonstrate full-stack skills with NestJS, React
 ## What it does
 
 - Run a scan for any brand + category (e.g. "Bosch" + "home appliances")
-- Fires 15 parallel prompts across 3 simulated AI engine personas
+- Fires up to 15 prompts across 3 simulated AI engine personas (configurable via env vars)
 - Parses each response: was the brand mentioned? at what position? positive or negative sentiment?
 - Calculates a visibility score (0–100) per response
 - Stores all results in Firestore and aggregates them over time
@@ -43,8 +43,8 @@ NestJS
     ├── ScansModule      POST /api/scans
     ├── AnalyticsModule  GET  /api/analytics
     └── AIService
-            ├── VisibilityOrchestrator  (15 parallel calls, batched)
-            ├── Parser                  (mention, position, sentiment, score)
+            ├── runScan()    (orchestrates N prompts × M engines, batched)
+            ├── Parser       (mention, position, sentiment, score)
             └── Providers
                     ├── Claude Haiku (Anthropic)
                     └── OpenRouter   (free models)
@@ -92,6 +92,19 @@ OPENROUTER_API_KEY=your_key_here
 AI_PROVIDER=openrouter               # or 'anthropic'
 OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
 ANTHROPIC_MODEL=claude-haiku-4-5
+
+# Scan scope (default: 2 engines × 2 prompts = 4 calls per scan)
+AI_MAX_ENGINES=2
+AI_MAX_PROMPTS=2
+AI_CONCURRENCY=1
+AI_DELAY_MS=2500
+
+# CORS (set to your production frontend URL before deploying)
+FRONTEND_URL=http://localhost:5173
+
+# Rate limiting on POST /api/scans (5 requests per IP per minute)
+THROTTLE_TTL_MS=60000
+THROTTLE_SCAN_LIMIT=5
 ```
 
 Add your Firebase service account key:
@@ -130,11 +143,11 @@ Open http://localhost:5173
 
 1. User submits a brand name and category
 2. Backend creates a scan document in Firestore with status `running`
-3. `VisibilityOrchestrator` builds 15 tasks (5 prompts × 3 engine personas)
-4. Tasks fire in batches of 3 with 300ms gaps to respect API rate limits
+3. `AIService.runScan()` builds N tasks (AI_MAX_PROMPTS × AI_MAX_ENGINES, default 2×2=4)
+4. Tasks fire in controlled batches (AI_CONCURRENCY) with AI_DELAY_MS gaps between batches
 5. Each response is parsed: mention detection, position extraction, sentiment analysis
 6. A visibility score (0–100) is calculated based on position + sentiment
-7. All 15 results are batch-written to Firestore
+7. All results are batch-written to Firestore atomically
 8. Scan status updates to `done`
 9. Frontend fetches results and displays them
 

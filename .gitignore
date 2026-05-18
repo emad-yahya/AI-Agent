@@ -3,3 +3,11 @@ node_modules
 dist
 backend/.env
 frontend/.env
+serviceAccountKey.json
+backend/serviceAccountKey.json
+
+# Local tooling / agents (not part of app)
+.claude/
+.agents/
+graphify-out/
+skills-lock.json

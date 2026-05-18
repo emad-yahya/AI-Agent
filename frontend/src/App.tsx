@@ -1,85 +1,315 @@
 // frontend/src/App.tsx
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ScanForm } from './components/ScanForm';
 import { ResultTable } from './components/ResultsTable';
 import { Dashboard } from './pages/Dashboard';
-import { api, type ScanResponse } from './api/client';
+import { CompareForm } from './components/CompareForm';
+import { ComparisonTable } from './components/ComparisonTable';
+import { RecommendationsPanel } from './components/RecommendationsPanel';
+import { ExportButtons } from './components/ExportButtons';
+import { SeoSiteForm } from './components/SeoSiteForm';
+import { SeoSiteDashboard } from './components/SeoSiteDashboard';
+import { SeoSiteHistory } from './components/SeoSiteHistory';
+import { SeoSiteResults } from './components/SeoSiteResults';
+import { SeoTrendChart } from './components/SeoTrendChart';
+import { SeoCompareView } from './components/SeoCompareView';
+import { TopicsPanel } from './components/TopicsPanel';
+import { CompetitorTrendChart } from './components/CompetitorTrend';
+import { AlertSettings } from './components/AlertSettings';
+import { SovChart } from './components/SovChart';
+import { PromptCoverageMap } from './components/PromptCoverageMap';
+import { ActionPlan } from './components/ActionPlan';
+import { ImpactPredictor } from './components/ImpactPredictor';
+import { ContentGenerator } from './components/ContentGenerator';
+import { CompetitorPlaybook } from './components/CompetitorPlaybook';
+import { SectionIntro } from './components/Hint';
+import { api, type ScanResponse, type BrandComparisonResult } from './api/client';
 import { useAsync } from './hooks/useAsync';
-import { Eye, ScanSearch, LayoutDashboard } from 'lucide-react';
+import { Eye, ScanSearch, LayoutDashboard, GitCompareArrows, Globe, Loader2, Sparkles, GitCompare } from 'lucide-react';
 
-type Tab = 'scan' | 'dashboard';
+type Tab = 'scan' | 'dashboard' | 'compare' | 'seo';
+
+const TABS: ReadonlyArray<{ key: Tab; label: string; Icon: typeof ScanSearch; gradient: string }> = [
+  { key: 'scan',      label: 'New scan',  Icon: ScanSearch,      gradient: 'from-indigo-500 to-fuchsia-500' },
+  { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, gradient: 'from-cyan-500 to-blue-600' },
+  { key: 'compare',   label: 'Compare',   Icon: GitCompareArrows, gradient: 'from-violet-500 to-pink-500' },
+  { key: 'seo',       label: 'SEO',       Icon: Globe,           gradient: 'from-emerald-500 to-teal-500' },
+];
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('scan');
   const [scanResult, setScanResult] = useState<ScanResponse | null>(null);
+  const [scanMeta, setScanMeta] = useState<{ brand: string; category: string } | null>(null);
+  const [compareResult, setCompareResult] = useState<BrandComparisonResult[] | null>(null);
+  const [seoSiteRefresh, setSeoSiteRefresh] = useState(0);
+  const [activeSeoSite, setActiveSeoSite] = useState<{ siteId: string; brand: string; domain: string } | null>(null);
+  const [activeSeoScan, setActiveSeoScan] = useState<string | null>(null);
+  const [seoCompareOpen, setSeoCompareOpen] = useState(false);
+  const [lastScanBrandId, setLastScanBrandId] = useState<string | null>(null);
   const { loading, run } = useAsync<ScanResponse>();
 
-  const handleScanComplete = async (brandId: string, scanId: string) => {
+  const handleScanComplete = async (brandId: string, scanId: string, brand: string, category: string) => {
+    setScanMeta({ brand, category });
+    setLastScanBrandId(brandId);
     const result = await run(api.getScan(brandId, scanId));
     if (result) setScanResult(result);
   };
 
+  const activeTab = TABS.find(t => t.key === tab)!;
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen relative">
+      <div className="app-mesh-bg" />
+      <div className="app-grain" />
 
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-8 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-              <Eye className="w-5 h-5 text-blue-600" />
-              AI Visibility Tracker
-            </h1>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Track how your brand appears across AI search engines
-            </p>
+      <header className="sticky top-0 z-40 glass-strong border-b border-white/40">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-6">
+          <div className="flex items-center gap-3 min-w-0">
+            <motion.div
+              initial={{ rotate: -180, scale: 0 }}
+              animate={{ rotate: 0, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+              className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-pink-500 flex items-center justify-center shadow-[var(--shadow-glow-brand)]"
+            >
+              <Eye className="w-5 h-5 text-white drop-shadow" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-white glow-dot" />
+            </motion.div>
+            <div className="min-w-0">
+              <h1 className="text-[15px] font-bold text-slate-900 tracking-tight">
+                AI Visibility <span className="text-gradient">Tracker</span>
+              </h1>
+              <p className="text-[11px] text-slate-500 -mt-0.5 truncate flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-fuchsia-500" />
+                Track how AI engines describe your brand
+              </p>
+            </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            {(['scan', 'dashboard'] as Tab[]).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
-                  ${tab === t
-                    ? 'bg-white text-gray-800 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                {t === 'scan'
-                  ? <><ScanSearch className="w-4 h-4" /> New scan</>
-                  : <><LayoutDashboard className="w-4 h-4" /> Dashboard</>
-                }
-              </button>
-            ))}
-          </div>
+          {/* Segmented tabs */}
+          <nav className="flex gap-1 bg-white/60 rounded-2xl p-1.5 ring-1 ring-slate-200/60 shadow-[var(--shadow-soft)]">
+            {TABS.map(({ key, label, Icon, gradient }) => {
+              const active = tab === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className="relative px-3.5 py-1.5 rounded-xl text-[13px] font-semibold flex items-center gap-1.5
+                             text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="tab-pill"
+                      className={`absolute inset-0 bg-gradient-to-r ${gradient} rounded-xl shadow-[0_6px_16px_-4px_rgba(99,102,241,0.5)]`}
+                      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                    />
+                  )}
+                  <Icon className={`w-3.5 h-3.5 relative z-10 ${active ? 'text-white' : ''}`} />
+                  <span className={`relative z-10 ${active ? 'text-white' : ''}`}>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
-      </div>
+      </header>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-8 py-8 flex flex-col gap-6">
-        {tab === 'scan' && (
-          <>
-            <ScanForm onScanComplete={handleScanComplete} />
+      <main className="relative z-10 max-w-7xl mx-auto px-6 py-10">
+        {/* Hero strip for active tab */}
+        <motion.div
+          key={`hero-${tab}`}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+          className="mb-7 flex items-center gap-4"
+        >
+          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${activeTab.gradient} flex items-center justify-center shadow-[var(--shadow-glow-brand)]`}>
+            <activeTab.Icon className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">{tabTitle(tab)}</h2>
+            <p className="text-sm text-slate-500 mt-0.5">{tabSubtitle(tab)}</p>
+          </div>
+        </motion.div>
 
-            {loading && (
-              <div className="text-center text-sm text-gray-400 py-8">
-                Fetching results...
-              </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col gap-6"
+          >
+            {tab === 'scan' && (
+              <>
+                <SectionIntro>
+                  <b>How it works:</b> Type your brand + category. We send 5 real questions to <b>ChatGPT, Gemini & Perplexity</b> (15 calls total) and analyze if they mention you. You'll get a full report: stats, recommendations, competitor playbook, and a 30-day action plan.
+                </SectionIntro>
+                <ScanForm onScanComplete={handleScanComplete} />
+
+                {loading && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-slate-500 py-10">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                    Fetching results...
+                  </div>
+                )}
+
+                {scanResult && !loading && scanMeta && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col gap-6"
+                  >
+                    <div className="flex items-center justify-between flex-wrap gap-3 glass rounded-2xl px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 glow-dot" />
+                        <span className="text-sm font-semibold text-slate-800">{scanMeta.brand}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-sm text-slate-500">{scanMeta.category}</span>
+                      </div>
+                      <ExportButtons
+                        brand={scanMeta.brand}
+                        category={scanMeta.category}
+                        results={scanResult.results}
+                        stats={scanResult.stats}
+                        recommendations={scanResult.recommendations}
+                      />
+                    </div>
+                    <ResultTable results={scanResult.results} stats={scanResult.stats} />
+                    <TopicsPanel results={scanResult.results} />
+                    <PromptCoverageMap brand={scanMeta.brand} />
+                    <RecommendationsPanel recommendations={scanResult.recommendations} />
+                    <ImpactPredictor results={scanResult.results} stats={scanResult.stats} brand={scanMeta.brand} />
+                    <CompetitorPlaybook playbook={scanResult.competitorPlaybook} brand={scanMeta.brand} />
+                    <ActionPlan recommendations={scanResult.recommendations} brand={scanMeta.brand} />
+                    <ContentGenerator
+                      brand={scanMeta.brand}
+                      category={scanMeta.category}
+                      mentionRate={scanResult.stats.mentionRate}
+                      avgScore={scanResult.stats.avgScore}
+                    />
+                    {lastScanBrandId && (
+                      <AlertSettings brandId={lastScanBrandId} brandName={scanMeta.brand} />
+                    )}
+                  </motion.div>
+                )}
+              </>
             )}
 
-            {scanResult && !loading && (
-              <ResultTable
-                results={scanResult.results}
-                stats={scanResult.stats}
-              />
-            )}
-          </>
-        )}
+            {tab === 'dashboard' && <Dashboard />}
 
-        {tab === 'dashboard' && <Dashboard />}
-      </div>
+            {tab === 'compare' && (
+              <>
+                <SectionIntro>
+                  <b>Compare tab:</b> Run an AI scan on 2–4 brands at once. See who AI mentions most (<b>Share of Voice</b>), how each engine scores them, and how trends change over time.
+                </SectionIntro>
+                <CompareForm onResult={(r) => { setCompareResult(r); }} />
+                {compareResult && (
+                  <>
+                    <ComparisonTable results={compareResult} />
+                    <SovChart results={compareResult} />
+                  </>
+                )}
+                <CompetitorTrendChart />
+              </>
+            )}
+
+            {tab === 'seo' && (
+              <>
+                <SectionIntro>
+                  <b>SEO tab (Google rankings):</b> Add your website URL + country. We crawl your pages, find your keywords, and check where you rank on Google. Run regular scans to see your trend + auto-detect when rankings drop.
+                </SectionIntro>
+                <div className="flex items-center justify-end">
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => setSeoCompareOpen((v) => !v)}
+                    className="text-xs px-3.5 py-2 border border-slate-200 bg-white/80 hover:bg-white text-slate-700 rounded-xl flex items-center gap-1.5 shadow-[var(--shadow-soft)] backdrop-blur transition-all"
+                  >
+                    <GitCompare className="w-3.5 h-3.5 text-emerald-600" />
+                    {seoCompareOpen ? 'Close compare' : 'Compare sites'}
+                  </motion.button>
+                </div>
+                <SeoCompareView open={seoCompareOpen} onClose={() => setSeoCompareOpen(false)} />
+                <SeoSiteForm
+                  onSiteCreated={(siteId, brand, domain) => {
+                    setActiveSeoSite({ siteId, brand, domain });
+                    setActiveSeoScan(null);
+                    setSeoSiteRefresh((n) => n + 1);
+                  }}
+                />
+                <SeoSiteDashboard
+                  refreshKey={seoSiteRefresh}
+                  activeSiteId={activeSeoSite?.siteId ?? null}
+                  onSelectSite={(siteId) => {
+                    const samePick = activeSeoSite?.siteId === siteId;
+                    if (!samePick) setActiveSeoScan(null);
+                    if (!samePick) {
+                      void api.getSeoSite(siteId).then((s) => {
+                        setActiveSeoSite({ siteId: s.id, brand: s.brand, domain: s.domain });
+                      });
+                    }
+                  }}
+                  onRunScan={(siteId, scanId, brand, domain) => {
+                    setActiveSeoSite({ siteId, brand, domain });
+                    setActiveSeoScan(scanId);
+                    setSeoSiteRefresh((n) => n + 1);
+                  }}
+                />
+                {activeSeoSite && (
+                  <>
+                    <SeoTrendChart siteId={activeSeoSite.siteId} refreshKey={seoSiteRefresh} />
+                    <SeoSiteHistory
+                      siteId={activeSeoSite.siteId}
+                      refreshKey={seoSiteRefresh}
+                      activeScanId={activeSeoScan}
+                      onSelectScan={(scanId) => setActiveSeoScan(scanId)}
+                    />
+                    {activeSeoScan && (
+                      <SeoSiteResults
+                        siteId={activeSeoSite.siteId}
+                        scanId={activeSeoScan}
+                        brand={activeSeoSite.brand}
+                        domain={activeSeoSite.domain}
+                      />
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Footer */}
+        <footer className="mt-20 pt-6 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 glow-dot" />
+            All systems operational
+          </span>
+          <span>AI Visibility Tracker · v1</span>
+        </footer>
+      </main>
     </div>
   );
 }
+
+function tabTitle(t: Tab) {
+  switch (t) {
+    case 'scan':      return 'New scan';
+    case 'dashboard': return 'Dashboard';
+    case 'compare':   return 'Compare brands';
+    case 'seo':       return 'SEO tracker';
+  }
+}
+function tabSubtitle(t: Tab) {
+  switch (t) {
+    case 'scan':      return 'Run a live AI visibility check across 3 engines.';
+    case 'dashboard': return 'Your brand history, trends, and scheduled scans.';
+    case 'compare':   return 'Pit 2–4 brands head-to-head with Share of Voice.';
+    case 'seo':       return 'Crawl your site, find keywords, track Google rankings.';
+  }
+}
+
+void React;
