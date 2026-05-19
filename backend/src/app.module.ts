@@ -17,6 +17,7 @@ import { SeoModule } from './seo/seo.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { ListicleGapModule } from './listicle-gap/listicle-gap.module';
 import { CompetitorAuditModule } from './competitor-audit/competitor-audit.module';
+import { GeoActionsModule } from './geo-actions/geo-actions.module';
 import { ApiKeyMiddleware } from './auth/api-key.middleware';
 
 const redisUrl = process.env.REDIS_URL;
@@ -50,6 +51,7 @@ const redisUrl = process.env.REDIS_URL;
     AlertsModule,
     ListicleGapModule,
     CompetitorAuditModule,
+    GeoActionsModule,
   ],
 })
 export class AppModule implements NestModule {

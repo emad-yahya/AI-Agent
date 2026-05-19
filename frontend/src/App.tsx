@@ -18,6 +18,7 @@ import { TopicsPanel } from './components/TopicsPanel';
 import { CitationsPanel } from './components/CitationsPanel';
 import { ListicleGapPanel } from './components/ListicleGapPanel';
 import { CompetitorAuditPanel } from './components/CompetitorAuditPanel';
+import { GeoActionsPanel } from './components/GeoActionsPanel';
 import { CompetitorTrendChart } from './components/CompetitorTrend';
 import { AlertSettings } from './components/AlertSettings';
 import { SovChart } from './components/SovChart';
@@ -193,6 +194,7 @@ export default function App() {
                       brand={scanMeta.brand}
                       results={scanResult.results}
                     />
+                    <GeoActionsPanel brand={scanMeta.brand} />
                     <PromptCoverageMap brand={scanMeta.brand} />
                     <RecommendationsPanel recommendations={scanResult.recommendations} />
                     <ImpactPredictor results={scanResult.results} stats={scanResult.stats} brand={scanMeta.brand} />

@@ -2,6 +2,42 @@
 
 ---
 
+## [2026-05-19] — Session 30: GEO Actions — Data-driven Recommendations (Tier 1 #5)
+
+### Goal
+Stack of real data exists (Citations, Listicle Gap, Competitor Audit). Need final layer: turn raw data into prioritized, actionable steps with clickable evidence. Zero LLM invention — every action surfaces from deterministic rules over scan data.
+
+### Backend
+- New module `backend/src/geo-actions/`:
+  - `geo-actions.service.ts`:
+    - `generate(brand)` pulls latest `done` AI scan + latest `done` listicle-gap scan + latest `done` competitor-audit scan in parallel
+    - `synthesizeFromAudit` — per signal gap (yourStatus=false + competitorsWithIt>0): priority = competitorsWithIt/totalCompetitors ratio (critical ≥0.75, high ≥0.5, medium otherwise). Each action has signal-specific steps from `signalSteps()` switch (FAQ schema, llms.txt, robots.txt GPTBot allow, etc), effort estimate, expectedImpact copy
+    - `synthesizeFromListicle` — top 3 competitor gaps (gapArticles≥2). Action: "Pitch to articles featuring X" with sample URLs as evidence
+    - `synthesizeFromAiScan` — citation coverage (top cited domains where brand absent) + per-engine weakness (mention rate <30% → engine-tailored steps)
+    - All actions sorted by score (deterministic)
+  - `geo-actions.controller.ts` — `GET /api/geo-actions?brand=`
+  - `geo-actions.module.ts` — imports FirebaseModule
+- `common/types.ts` — `GeoAction`, `GeoActionCategory`, `GeoActionPriority`, `GeoActionEvidence`, `GeoActionsReport` types
+- `app.module.ts` — `GeoActionsModule` registered
+
+### Frontend
+- `api/client.ts` — types + `api.generateGeoActions(brand)`
+- `components/GeoActionsPanel.tsx` (NEW) — fetches report on mount, groups actions by priority (critical→low), color-coded chips, expandable steps, evidence link with scan source + sample URLs
+- `App.tsx` — `GeoActionsPanel` rendered after `CompetitorAuditPanel`
+
+### Data-driven principle (enforced)
+Every action is generated from real scan data — citation URLs come from Gemini grounding, listicle URLs come from Serper+scrape, audit signals come from cheerio+robots.txt parse. LLM is not called in the synthesis path at all. Each action carries an `evidence` object with `scanId` + `urls` + `values` for verification.
+
+### JSX fix
+GeoActionsPanel used `JSX.Element` (React 19 + new transform doesn't expose JSX namespace globally). Replaced with `import type { ReactNode }`.
+
+### Test plan
+- ✅ Backend: 63/63 jest pass
+- ✅ Backend + frontend: builds clean
+- ⏳ Pending live test: run all 4 scans (AI + listicle + audit) on a brand, then open GeoActionsPanel to verify actions surface from each source
+
+---
+
 ## [2026-05-18] — Session 29: Competitor Site Fingerprint (GEO Tier 1 #3)
 
 ### Goal

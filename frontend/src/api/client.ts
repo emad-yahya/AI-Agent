@@ -317,6 +317,55 @@ export interface ListicleGapScan {
   brandMentionedCount?: number;
 }
 
+export type GeoActionCategory =
+  | 'schema'
+  | 'crawler-access'
+  | 'citation'
+  | 'listicle'
+  | 'engine-weakness'
+  | 'content';
+
+export type GeoActionPriority = 'critical' | 'high' | 'medium' | 'low';
+
+export interface GeoAction {
+  id: string;
+  category: GeoActionCategory;
+  priority: GeoActionPriority;
+  title: string;
+  description: string;
+  steps: string[];
+  effort: '15m' | '1h' | 'half-day' | '1d' | 'ongoing';
+  expectedImpact: string;
+  evidence: {
+    type: 'ai-scan' | 'citation' | 'listicle-gap' | 'competitor-audit';
+    scanId?: string;
+    scanType?: string;
+    detail?: string;
+    urls?: string[];
+    values?: Record<string, string | number | boolean>;
+  };
+  score: number;
+}
+
+export interface GeoActionsReport {
+  brand: string;
+  generatedAt: string;
+  actions: GeoAction[];
+  sources: {
+    hasAiScan: boolean;
+    hasListicleGap: boolean;
+    hasCompetitorAudit: boolean;
+    aiScanId?: string;
+    listicleGapScanId?: string;
+    competitorAuditScanId?: string;
+  };
+  summary: {
+    total: number;
+    byPriority: Record<GeoActionPriority, number>;
+    byCategory: Record<GeoActionCategory, number>;
+  };
+}
+
 export interface AiBotAccess {
   GPTBot: boolean;
   ChatGPTUser: boolean;
@@ -565,6 +614,13 @@ export const api = {
     return res.data;
   },
 
+  getGeoActions: async (brand: string) => {
+    const res = await http.get<GeoActionsReport>('/geo-actions', {
+      params: { brand },
+    });
+    return res.data;
+  },
+
   createCompetitorAudit: async (
     brand: string,
     brandDomain: string,
@@ -587,6 +643,13 @@ export const api = {
 
   listCompetitorAudits: async (brand: string) => {
     const res = await http.get<CompetitorAuditScan[]>('/competitor-audit', {
+      params: { brand },
+    });
+    return res.data;
+  },
+
+  generateGeoActions: async (brand: string) => {
+    const res = await http.get<GeoActionsReport>('/geo-actions', {
       params: { brand },
     });
     return res.data;

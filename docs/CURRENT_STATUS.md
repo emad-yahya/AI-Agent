@@ -1,5 +1,5 @@
 # CURRENT_STATUS.md
-_آخر تحديث: 2026-05-18 (Session 29)_
+_آخر تحديث: 2026-05-18 (Session 30)_
 
 ## 🎯 GEO Vision — الهدف النهائي
 السستم يجب أن يتحول من **يقيس** visibility إلى **يحسّن** ranking على AI engines، بحيث أي عميل يسأل ChatGPT/Gemini/Perplexity عن أي شي له علاقة بمجال البراند → اسم البراند يطلع باول النتائج.
@@ -10,10 +10,29 @@ _آخر تحديث: 2026-05-18 (Session 29)_
 | # | Feature | الحالة | شو يفعل |
 |---|---|---|---|
 | 1 | Citation Extractor | ✅ Session 27 | يستخرج URLs اللي Gemini grounding قراها لكل scan |
-| 2 | **Listicle Gap Finder** | 🟡 **جاري — Session 28** | Serper search على "best X in Y" → scrape أول 20 نتيجة → يحدد مقالات تذكر منافسيك وما تذكرك |
+| 2 | Listicle Gap Finder | ✅ Session 28 | Serper search على "best X in Y" → scrape أول 20 نتيجة → يحدد مقالات تذكر منافسيك وما تذكرك |
 | 3 | Competitor Site Fingerprint (Schema/llms.txt Audit) | ✅ Session 29 | Crawl موقع كل منافس + الموقع تبعك، مقارنة schemas + llms.txt + robots/AI-bots + indexed pages |
 | 4 | Backlink Gap | ⬜ Tier 1 #4 (يحتاج Ahrefs/DataForSEO API ~$50/mo) | من يلينك للمنافس وما يلينك لك |
-| 5 | Data-driven Recommendations | ⬜ Tier 1 #5 | استبدال generic Gemini recs بـactions حقيقية مرتبة بأولوية، كل توصية لها مصدر بيانات قابل للنقر |
+| 5 | Data-driven Recommendations (GEO Actions) | ✅ Session 30 | استبدال generic Gemini recs بـactions حقيقية مرتبة بأولوية، كل توصية لها مصدر بيانات قابل للنقر |
+
+---
+
+### [2026-05-18] Session 30 — GEO Actions: Data-driven Recommendations (Tier 1 #5)
+
+**ليه:**
+الـTier 1 stack بات يجمع بيانات حقيقية (Citations + Listicle Gaps + Competitor Audit). نحتاج طبقة أخيرة تحول البيانات الخام إلى **خطوات تنفيذية مرتبة بأولوية**، كل خطوة لها evidence قابل للفحص. ما عاد فيه تخمين Gemini — actions deterministic من القواعد.
+
+**التطبيق:**
+- Module جديد `geo-actions/`: ينقّب آخر `done` scan من كل نوع (AI scan + listicle + audit) ويولّد actions:
+  - **From competitor audit:** لكل signal gap (yourStatus=false + competitorsWithIt>0) → action بـpriority حسب نسبة المنافسين، steps محددة لكل signal (FAQ schema، GPTBot allow، llms.txt، etc)
+  - **From listicle gap:** أعلى 3 منافسين بأكبر gap → "Pitch to articles featuring X" مع URLs الـsamples الحقيقية
+  - **From AI scan citations:** أعلى 3 domains AI يقتبس منها وما تذكرك → "Get featured on top AI-cited domains"
+  - **From per-engine stats:** أي engine بمعدل ذكر < 30% → action مخصص لذلك engine (Perplexity = listicles، Gemini = structured data، ChatGPT = directory citations)
+- Scoring deterministic. LLM zero — exact match لـ[[feedback-data-driven-recommendations]].
+- Endpoint: `GET /api/geo-actions?brand=X` يرجع `GeoActionsReport`.
+- Frontend: `GeoActionsPanel.tsx` يعرض actions مرتبة، كل بطاقة فيها priority chip، steps قابلة للتوسيع، evidence link مع URLs.
+
+**جاي:** Tier 1 #4 (Backlink Gap) يحتاج Ahrefs/DataForSEO API ($50/mo)، أو Tier 2 features.
 
 ---
 
