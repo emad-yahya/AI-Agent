@@ -56,6 +56,16 @@ export interface ScanResponse {
     mentioned: number;
     mentionRate: number;
     avgScore: number;
+    // Real visibility = unbiased prompts (no brand name in prompt).
+    // Echo rate = prompts that explicitly name the brand.
+    realTotal?: number;
+    realMentioned?: number;
+    realMentionRate?: number;
+    realAvgScore?: number;
+    echoTotal?: number;
+    echoMentioned?: number;
+    echoMentionRate?: number;
+    echoAvgScore?: number;
   };
   recommendations: Recommendation[];
   competitorPlaybook: CompetitorPlaybookEntry[];

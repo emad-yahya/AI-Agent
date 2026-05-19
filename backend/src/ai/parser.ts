@@ -195,6 +195,46 @@ const TOPIC_SKIP = new Set([
   'There',
 ]);
 
+// Geographic suffixes and common place modifiers — phrases ending in or
+// containing these are usually neighborhoods/cities/streets, not topics
+// or competitor brands. Lowercase for case-insensitive match.
+const GEO_TOKEN_BLOCKLIST = new Set([
+  // Streets / addresses
+  'street', 'st', 'avenue', 'ave', 'road', 'rd', 'boulevard', 'blvd',
+  'lane', 'drive', 'dr', 'way', 'court', 'plaza', 'square', 'circle',
+  // Neighborhood / district
+  'district', 'neighborhood', 'quarter', 'borough', 'precinct',
+  'heights', 'hills', 'park', 'gardens', 'estate', 'estates',
+  'village', 'town', 'township', 'community',
+  // Geographic features
+  'beach', 'bay', 'harbor', 'harbour', 'island', 'islands',
+  'valley', 'ridge', 'creek', 'river', 'lake', 'cove', 'coast',
+  'point', 'shores', 'shore',
+  // Administrative units
+  'city', 'county', 'state', 'province', 'region', 'territory',
+  'country', 'nation', 'kingdom', 'republic', 'emirate', 'emirates',
+  // Direction modifiers used in place names
+  'north', 'south', 'east', 'west', 'central', 'upper', 'lower', 'old', 'new',
+  // Common Dubai / UAE area words (project is Dubai-heavy)
+  'marina', 'jumeirah', 'downtown', 'silicon', 'oasis',
+]);
+
+const GEO_FULL_NAMES = new Set([
+  'New York', 'Los Angeles', 'San Francisco', 'San Diego', 'Las Vegas',
+  'United States', 'United Kingdom', 'United Arab', 'Saudi Arabia',
+  'Hong Kong', 'Abu Dhabi', 'Dubai Marina', 'Palm Jumeirah',
+  'Park Slope', 'Fort Greene', 'Long Island', 'Wall Street',
+]);
+
+function isGeographicPhrase(phrase: string): boolean {
+  if (GEO_FULL_NAMES.has(phrase)) return true;
+  const tokens = phrase.toLowerCase().split(/\s+/);
+  for (const t of tokens) {
+    if (GEO_TOKEN_BLOCKLIST.has(t)) return true;
+  }
+  return false;
+}
+
 export function extractTopics(response: string, brand: string): string[] {
   if (!response) return [];
   const brandLower = brand.toLowerCase();
@@ -205,6 +245,7 @@ export function extractTopics(response: string, brand: string): string[] {
     const words = phrase.split(' ');
     if (words.some((w) => TOPIC_SKIP.has(w))) continue;
     if (phrase.toLowerCase().includes(brandLower)) continue;
+    if (isGeographicPhrase(phrase)) continue;
     if (seen.has(phrase)) continue;
     seen.add(phrase);
     result.push(phrase);

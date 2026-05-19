@@ -532,6 +532,77 @@ Example for a Dubai real estate broker brand:
     }
   }
 
+  /**
+   * Discover direct competitor BRANDS (not article hosts) via Gemini with
+   * Google Search grounding. Returns brand names — caller maps them to
+   * domains. Falls back to [] on any failure so onboarding can use Serper.
+   *
+   * Why: Serper-based discovery extracts URL hosts from organic results,
+   * which surfaces directory sites (G2, Capterra) or jobs/blogs subdomains
+   * instead of actual competitors. Gemini grounding reads the article CONTENT
+   * and names real businesses.
+   */
+  async findCompetitorBrandsViaGemini(
+    brand: string,
+    category: string | null,
+    country: string,
+  ): Promise<string[]> {
+    if (!this.gemini) return [];
+    const cat = (category ?? '').trim() || 'the same market';
+    const system =
+      'You research markets for an AI visibility tracker. Return ONLY valid JSON arrays of brand names. No commentary, no markdown.';
+    const user = `List 5 to 8 direct business competitors of "${brand}" in the "${cat}" industry${
+      country ? `, operating in ${this.countryFullName(country)}` : ''
+    }.
+
+Hard rules:
+- Return ACTUAL competitor BRAND NAMES (not directory sites, not review sites, not jobs sites, not Wikipedia)
+- Exclude "${brand}" itself from the list
+- Each brand must be a real company that competes for the same customers
+- Use the brand's common/public name (e.g. "PayPal" not "PayPal Holdings Inc")
+
+Return ONLY a JSON array of strings, no markdown:
+["BrandA", "BrandB", "BrandC", "BrandD", "BrandE"]`;
+
+    try {
+      const { text } = await this.callGemini(system, user, true);
+      const parsed = this.parseStringArray(text);
+      const brandLower = brand.trim().toLowerCase();
+      const filtered = parsed
+        .map((s) => s.trim())
+        .filter((s) => s.length >= 2 && s.length <= 80)
+        .filter((s) => s.toLowerCase() !== brandLower);
+      this.logger.log(
+        `Gemini suggested ${filtered.length} competitors for "${brand}" in "${cat}"`,
+      );
+      return filtered.slice(0, 8);
+    } catch (err) {
+      this.logger.warn(
+        `Gemini competitor lookup failed for "${brand}": ${(err as Error).message}`,
+      );
+      return [];
+    }
+  }
+
+  private countryFullName(code: string): string {
+    const names: Record<string, string> = {
+      us: 'the United States',
+      ae: 'the UAE',
+      sa: 'Saudi Arabia',
+      gb: 'the United Kingdom',
+      uk: 'the United Kingdom',
+      de: 'Germany',
+      fr: 'France',
+      it: 'Italy',
+      es: 'Spain',
+      jp: 'Japan',
+      in: 'India',
+      au: 'Australia',
+      ca: 'Canada',
+    };
+    return names[code.toLowerCase()] ?? code.toUpperCase();
+  }
+
   private parseStringArray(raw: string): string[] {
     const cleaned = raw
       .trim()

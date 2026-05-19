@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AIModule } from 'src/ai/ai.module';
 import { SeoModule } from 'src/seo/seo.module';
 import { ScansModule } from 'src/scans/scans.module';
 import { CompetitorAuditModule } from 'src/competitor-audit/competitor-audit.module';
@@ -9,6 +10,7 @@ import { OnboardingService } from './onboarding.service';
 
 @Module({
   imports: [
+    AIModule,
     SeoModule,
     ScansModule,
     CompetitorAuditModule,

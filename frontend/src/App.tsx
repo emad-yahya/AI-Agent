@@ -58,6 +58,7 @@ export default function App() {
   const [lastScanBrandId, setLastScanBrandId] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState<GeneratorKind | null>(null);
+  const [geoActionsCount, setGeoActionsCount] = useState<number | null>(null);
   const { loading, run } = useAsync<ScanResponse>();
 
   const handleScanComplete = async (brandId: string, scanId: string, brand: string, category: string) => {
@@ -213,12 +214,19 @@ export default function App() {
                       brand={scanMeta.brand}
                       results={scanResult.results}
                     />
-                    <GeoActionsPanel brand={scanMeta.brand} />
+                    <GeoActionsPanel
+                      brand={scanMeta.brand}
+                      onActionsLoaded={(c) => setGeoActionsCount(c)}
+                    />
                     <OnPageSeoPanel brand={scanMeta.brand} />
                     <ContentGapPanel brand={scanMeta.brand} results={scanResult.results} />
                     <GeneratorToolbar onOpen={(k) => setGeneratorOpen(k)} brand={scanMeta.brand} />
                     <PromptCoverageMap brand={scanMeta.brand} />
-                    <RecommendationsPanel recommendations={scanResult.recommendations} />
+                    {/* GeoActionsPanel covers data-driven recommendations. Only show the
+                        generic LLM recs panel when GeoActions has nothing to surface. */}
+                    {(geoActionsCount === null || geoActionsCount === 0) && (
+                      <RecommendationsPanel recommendations={scanResult.recommendations} />
+                    )}
                     <ImpactPredictor results={scanResult.results} stats={scanResult.stats} brand={scanMeta.brand} />
                     <CompetitorPlaybook playbook={scanResult.competitorPlaybook} brand={scanMeta.brand} />
                     <ActionPlan recommendations={scanResult.recommendations} brand={scanMeta.brand} />

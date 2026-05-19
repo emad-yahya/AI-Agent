@@ -51,6 +51,15 @@ export interface ScanSummary {
   mentionRate: number;
   total: number;
   mentioned: number;
+  // Split metrics — real visibility (unbiased prompts) vs echo rate (brand-mention prompts)
+  realMentionRate?: number;
+  realAvgScore?: number;
+  realTotal?: number;
+  realMentioned?: number;
+  echoMentionRate?: number;
+  echoAvgScore?: number;
+  echoTotal?: number;
+  echoMentioned?: number;
   byEngine: Record<
     string,
     { avgScore: number; mentionRate: number; totalCalls: number }

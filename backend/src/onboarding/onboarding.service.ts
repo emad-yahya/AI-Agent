@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { AIService } from 'src/ai/ai.service';
 import { CrawlerService } from 'src/seo/crawler.service';
 import { SerperService } from 'src/seo/serper.service';
 import { ScansService } from 'src/scans/scans.service';
@@ -41,6 +42,7 @@ export class OnboardingService {
   private readonly logger = new Logger(OnboardingService.name);
 
   constructor(
+    private ai: AIService,
     private crawler: CrawlerService,
     private serper: SerperService,
     private scans: ScansService,
@@ -148,8 +150,84 @@ export class OnboardingService {
     category: string | null,
     country: string,
   ): Promise<string[]> {
-    if (!this.serper.isConfigured()) return [];
+    // Primary: Gemini grounded — returns BRAND NAMES (actual competitors,
+    // not article hosts). Map each name to a domain via Serper.
+    const geminiBrands = await this.ai.findCompetitorBrandsViaGemini(
+      brand,
+      category,
+      country,
+    );
+    if (geminiBrands.length > 0 && this.serper.isConfigured()) {
+      const resolved = await this.resolveBrandsToDomains(
+        geminiBrands,
+        domain,
+        country,
+      );
+      if (resolved.length >= 3) return resolved.slice(0, 8);
+      this.logger.warn(
+        `Gemini gave ${geminiBrands.length} brands but only ${resolved.length} resolved — falling back to Serper discovery`,
+      );
+    }
 
+    // Fallback: Serper organic-host extraction (returns sites that RANK for
+    // category queries — may include directories, but better than nothing).
+    if (!this.serper.isConfigured()) return [];
+    return this.discoverCompetitorsViaSerper(domain, brand, category, country);
+  }
+
+  /**
+   * Resolves brand NAMES to web domains via Serper. Uses the top organic
+   * result for `"<brand>" official site` queries, then filters out the
+   * brand's own domain and directory hosts.
+   */
+  private async resolveBrandsToDomains(
+    brands: string[],
+    selfDomain: string,
+    country: string,
+  ): Promise<string[]> {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const b of brands) {
+      const d = await this.brandNameToDomain(b, selfDomain, country);
+      if (!d || seen.has(d)) continue;
+      seen.add(d);
+      out.push(d);
+    }
+    return out;
+  }
+
+  private async brandNameToDomain(
+    brandName: string,
+    selfDomain: string,
+    country: string,
+  ): Promise<string | null> {
+    try {
+      const res = await this.serper.search(`"${brandName}" official site`, {
+        country,
+        num: 5,
+      });
+      const organic = res?.organic ?? [];
+      for (const item of organic) {
+        const d = this.serper.extractDomain(item.link);
+        if (!d) continue;
+        if (d === selfDomain || d.endsWith(`.${selfDomain}`)) continue;
+        if (this.isDirectoryDomain(d)) continue;
+        return d;
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to resolve brand "${brandName}" to domain: ${(err as Error).message}`,
+      );
+    }
+    return null;
+  }
+
+  private async discoverCompetitorsViaSerper(
+    domain: string,
+    brand: string,
+    category: string | null,
+    country: string,
+  ): Promise<string[]> {
     const queries = [
       `top ${category ?? brand} in ${this.countryName(country)}`,
       `${brand} alternatives`,

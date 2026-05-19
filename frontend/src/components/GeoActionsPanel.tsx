@@ -22,6 +22,7 @@ import { SectionIntro } from './Hint';
 
 interface Props {
   brand: string;
+  onActionsLoaded?: (count: number) => void;
 }
 
 const PRIORITY_STYLES: Record<GeoActionPriority, { ring: string; chip: string }> = {
@@ -40,7 +41,7 @@ const CATEGORY_ICONS: Record<GeoActionCategory, ReactNode> = {
   content: <FileText className="w-3.5 h-3.5" />,
 };
 
-export function GeoActionsPanel({ brand }: Props) {
+export function GeoActionsPanel({ brand, onActionsLoaded }: Props) {
   const [report, setReport] = useState<GeoActionsReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +53,10 @@ export function GeoActionsPanel({ brand }: Props) {
     try {
       const data = await api.getGeoActions(brand);
       setReport(data);
+      onActionsLoaded?.(data.actions?.length ?? 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load actions');
+      onActionsLoaded?.(0);
     } finally {
       setLoading(false);
     }

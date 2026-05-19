@@ -176,6 +176,25 @@ export function OnPageSeoPanel({ brand, domain }: Props) {
                 <Zap size={16} className="text-amber-500" />
                 Core Web Vitals (mobile)
               </h4>
+              {report.vitals.every((v) => !v.fetched || v.performanceScore === null) && (
+                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  <p className="font-semibold mb-1">⚠ PageSpeed data unavailable</p>
+                  <p>
+                    Free PSI quota is 25k/day with a key, much lower without one. Set
+                    <code className="mx-1 px-1 py-0.5 bg-amber-100 rounded">GOOGLE_PSI_API_KEY</code>
+                    in Railway env vars to lift the limit. Get a free key at{' '}
+                    <a
+                      href="https://developers.google.com/speed/docs/insights/v5/get-started#APIKey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline font-semibold"
+                    >
+                      developers.google.com
+                    </a>
+                    .
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 {report.vitals.map((v, i) => (
                   <div key={i} className="border rounded-lg p-3 text-sm">

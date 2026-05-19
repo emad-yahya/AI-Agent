@@ -10,6 +10,14 @@ interface Props {
         mentioned: number;
         mentionRate: number;
         avgScore: number;
+        realTotal?: number;
+        realMentioned?: number;
+        realMentionRate?: number;
+        realAvgScore?: number;
+        echoTotal?: number;
+        echoMentioned?: number;
+        echoMentionRate?: number;
+        echoAvgScore?: number;
     };
 }
 
@@ -36,6 +44,8 @@ const STAT_TIPS: Record<string, string> = {
     'Mentioned': 'How many of those answers actually included your brand name.',
     'Mention rate': '% of answers that mentioned you — the higher, the more visible you are in AI search.',
     'Avg score': 'Quality score (0–100) for the answers that DID mention you. Combines ranking position + sentiment.',
+    'Real visibility': 'Mention rate on UNBIASED prompts — questions that never name your brand. This is the metric that proves AI engines truly know you.',
+    'Echo rate': 'Mention rate on BRAND-CUE prompts (e.g. "Besides {brand}…", "How is {brand}?"). The LLM is being prompted with your name, so a hit only means it can talk about you when asked, not that it surfaces you spontaneously.',
 };
 
 const STAT_COLORS: Record<string, string> = {
@@ -43,17 +53,30 @@ const STAT_COLORS: Record<string, string> = {
     'Mentioned': 'from-blue-500 to-indigo-600',
     'Mention rate': 'from-emerald-500 to-teal-500',
     'Avg score': 'from-violet-500 to-fuchsia-500',
+    'Real visibility': 'from-emerald-500 to-teal-500',
+    'Echo rate': 'from-amber-500 to-orange-500',
 };
 
 export function ResultTable({ results, stats }: Props) {
     if (!results || !stats) return null;
 
-    const statRows = [
-        { label: 'Total calls', value: stats.total },
-        { label: 'Mentioned', value: stats.mentioned },
-        { label: 'Mention rate', value: `${stats.mentionRate}%` },
-        { label: 'Avg score', value: stats.avgScore },
-    ];
+    const hasSplit =
+        stats.realTotal !== undefined && stats.realTotal > 0 &&
+        stats.echoTotal !== undefined && stats.echoTotal > 0;
+
+    const statRows = hasSplit
+        ? [
+              { label: 'Real visibility', value: `${stats.realMentionRate ?? 0}%` },
+              { label: 'Echo rate', value: `${stats.echoMentionRate ?? 0}%` },
+              { label: 'Mention rate', value: `${stats.mentionRate}%` },
+              { label: 'Avg score', value: stats.avgScore },
+          ]
+        : [
+              { label: 'Total calls', value: stats.total },
+              { label: 'Mentioned', value: stats.mentioned },
+              { label: 'Mention rate', value: `${stats.mentionRate}%` },
+              { label: 'Avg score', value: stats.avgScore },
+          ];
 
     return (
         <motion.div

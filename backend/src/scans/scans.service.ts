@@ -198,6 +198,16 @@ export class ScansService {
         : 0;
     const mentionRate = Math.round((mentioned.length / results.length) * 100);
 
+    // Real vs Echo split based on prompt templateId
+    const realResults = results.filter(
+      (r) => !ScansService.ECHO_TEMPLATE_IDS.has(r.templateId ?? ''),
+    );
+    const echoResults = results.filter((r) =>
+      ScansService.ECHO_TEMPLATE_IDS.has(r.templateId ?? ''),
+    );
+    const realMentioned = realResults.filter((r) => r.mentioned);
+    const echoMentioned = echoResults.filter((r) => r.mentioned);
+
     const scanData = scanDoc.data() as Scan;
 
     return {
@@ -208,6 +218,32 @@ export class ScansService {
         mentioned: mentioned.length,
         mentionRate,
         avgScore,
+        realTotal: realResults.length,
+        realMentioned: realMentioned.length,
+        realMentionRate:
+          realResults.length > 0
+            ? Math.round((realMentioned.length / realResults.length) * 100)
+            : 0,
+        realAvgScore:
+          realMentioned.length > 0
+            ? Math.round(
+                realMentioned.reduce((s, r) => s + r.visibilityScore, 0) /
+                  realMentioned.length,
+              )
+            : 0,
+        echoTotal: echoResults.length,
+        echoMentioned: echoMentioned.length,
+        echoMentionRate:
+          echoResults.length > 0
+            ? Math.round((echoMentioned.length / echoResults.length) * 100)
+            : 0,
+        echoAvgScore:
+          echoMentioned.length > 0
+            ? Math.round(
+                echoMentioned.reduce((s, r) => s + r.visibilityScore, 0) /
+                  echoMentioned.length,
+              )
+            : 0,
       },
       recommendations: scanData.recommendations ?? [],
       competitorPlaybook: scanData.competitorPlaybook ?? [],
@@ -319,6 +355,13 @@ export class ScansService {
     };
   }
 
+  // Echo buckets — prompts that MENTION the brand by name. Hitting these is
+  // not "real visibility" because the LLM is responding to a brand cue.
+  private static readonly ECHO_TEMPLATE_IDS = new Set([
+    'top_alternatives',
+    'brand_reputation',
+  ]);
+
   private buildScanSummary(
     scanId: string,
     rawResults: RawResult[],
@@ -334,6 +377,16 @@ export class ScansService {
     const mentionRate = Math.round(
       (mentioned.length / rawResults.length) * 100,
     );
+
+    // Split into real (unbiased) vs echo (brand-mention) buckets
+    const realResults = rawResults.filter(
+      (r) => !ScansService.ECHO_TEMPLATE_IDS.has(r.template.id),
+    );
+    const echoResults = rawResults.filter((r) =>
+      ScansService.ECHO_TEMPLATE_IDS.has(r.template.id),
+    );
+    const realMentioned = realResults.filter((r) => r.parsed.mentioned);
+    const echoMentioned = echoResults.filter((r) => r.parsed.mentioned);
 
     const engines = [...new Set(rawResults.map((r) => r.engine))];
     const byEngine: ScanSummary['byEngine'] = {};
@@ -359,6 +412,36 @@ export class ScansService {
       mentionRate,
       total: rawResults.length,
       mentioned: mentioned.length,
+      realTotal: realResults.length,
+      realMentioned: realMentioned.length,
+      realMentionRate:
+        realResults.length > 0
+          ? Math.round((realMentioned.length / realResults.length) * 100)
+          : 0,
+      realAvgScore:
+        realMentioned.length > 0
+          ? Math.round(
+              realMentioned.reduce(
+                (s, r) => s + r.parsed.visibilityScore,
+                0,
+              ) / realMentioned.length,
+            )
+          : 0,
+      echoTotal: echoResults.length,
+      echoMentioned: echoMentioned.length,
+      echoMentionRate:
+        echoResults.length > 0
+          ? Math.round((echoMentioned.length / echoResults.length) * 100)
+          : 0,
+      echoAvgScore:
+        echoMentioned.length > 0
+          ? Math.round(
+              echoMentioned.reduce(
+                (s, r) => s + r.parsed.visibilityScore,
+                0,
+              ) / echoMentioned.length,
+            )
+          : 0,
       byEngine,
     };
   }
