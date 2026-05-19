@@ -20,6 +20,10 @@ import { ListicleGapPanel } from './components/ListicleGapPanel';
 import { CompetitorAuditPanel } from './components/CompetitorAuditPanel';
 import { BrandPresencePanel } from './components/BrandPresencePanel';
 import { GeoActionsPanel } from './components/GeoActionsPanel';
+import { OnPageSeoPanel } from './components/OnPageSeoPanel';
+import { ContentGapPanel } from './components/ContentGapPanel';
+import { OnboardingWizard } from './components/OnboardingWizard';
+import { GeneratorModal, type GeneratorKind } from './components/GeneratorModal';
 import { CompetitorTrendChart } from './components/CompetitorTrend';
 import { AlertSettings } from './components/AlertSettings';
 import { SovChart } from './components/SovChart';
@@ -31,7 +35,7 @@ import { CompetitorPlaybook } from './components/CompetitorPlaybook';
 import { SectionIntro } from './components/Hint';
 import { api, type ScanResponse, type BrandComparisonResult } from './api/client';
 import { useAsync } from './hooks/useAsync';
-import { Eye, ScanSearch, LayoutDashboard, GitCompareArrows, Globe, Loader2, Sparkles, GitCompare } from 'lucide-react';
+import { Eye, ScanSearch, LayoutDashboard, GitCompareArrows, Globe, Loader2, Sparkles, GitCompare, Code, FileText, Bot, Rocket } from 'lucide-react';
 
 type Tab = 'scan' | 'dashboard' | 'compare' | 'seo';
 
@@ -52,6 +56,8 @@ export default function App() {
   const [activeSeoScan, setActiveSeoScan] = useState<string | null>(null);
   const [seoCompareOpen, setSeoCompareOpen] = useState(false);
   const [lastScanBrandId, setLastScanBrandId] = useState<string | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState<GeneratorKind | null>(null);
   const { loading, run } = useAsync<ScanResponse>();
 
   const handleScanComplete = async (brandId: string, scanId: string, brand: string, category: string) => {
@@ -91,6 +97,14 @@ export default function App() {
               </p>
             </div>
           </div>
+
+          <button
+            onClick={() => setOnboardingOpen(true)}
+            className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold shadow-sm hover:opacity-90"
+          >
+            <Rocket className="w-3.5 h-3.5" />
+            Quick Start
+          </button>
 
           {/* Segmented tabs */}
           <nav className="flex gap-1 bg-white/60 rounded-2xl p-1.5 ring-1 ring-slate-200/60 shadow-[var(--shadow-soft)]">
@@ -200,6 +214,9 @@ export default function App() {
                       results={scanResult.results}
                     />
                     <GeoActionsPanel brand={scanMeta.brand} />
+                    <OnPageSeoPanel brand={scanMeta.brand} />
+                    <ContentGapPanel brand={scanMeta.brand} results={scanResult.results} />
+                    <GeneratorToolbar onOpen={(k) => setGeneratorOpen(k)} brand={scanMeta.brand} />
                     <PromptCoverageMap brand={scanMeta.brand} />
                     <RecommendationsPanel recommendations={scanResult.recommendations} />
                     <ImpactPredictor results={scanResult.results} stats={scanResult.stats} brand={scanMeta.brand} />
@@ -302,6 +319,23 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
 
+        <OnboardingWizard
+          open={onboardingOpen}
+          onClose={() => setOnboardingOpen(false)}
+          onComplete={(brand) => {
+            setScanMeta({ brand, category: '' });
+            setTab('dashboard');
+          }}
+        />
+        {generatorOpen && (
+          <GeneratorModal
+            open={!!generatorOpen}
+            kind={generatorOpen}
+            onClose={() => setGeneratorOpen(null)}
+            context={{ brandName: scanMeta?.brand }}
+          />
+        )}
+
         {/* Footer */}
         <footer className="mt-20 pt-6 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400">
           <span className="flex items-center gap-1.5">
@@ -333,3 +367,42 @@ function tabSubtitle(t: Tab) {
 }
 
 void React;
+
+function GeneratorToolbar({
+  onOpen,
+}: {
+  onOpen: (k: GeneratorKind) => void;
+  brand: string;
+}) {
+  const items: Array<{ k: GeneratorKind; label: string; Icon: typeof Code; color: string }> = [
+    { k: 'organization', label: 'Org / LocalBusiness Schema', Icon: Code, color: 'from-blue-500 to-cyan-500' },
+    { k: 'faq', label: 'FAQ Schema', Icon: Code, color: 'from-violet-500 to-fuchsia-500' },
+    { k: 'article', label: 'Article Schema', Icon: Code, color: 'from-pink-500 to-rose-500' },
+    { k: 'review', label: 'Review Schema', Icon: Code, color: 'from-amber-500 to-orange-500' },
+    { k: 'llmstxt', label: 'llms.txt', Icon: FileText, color: 'from-emerald-500 to-teal-500' },
+    { k: 'robots', label: 'robots.txt AI patch', Icon: Bot, color: 'from-slate-600 to-slate-800' },
+  ];
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Sparkles className="text-violet-600" size={18} />
+        <h3 className="font-bold text-slate-900">One-click Fix Generators</h3>
+      </div>
+      <p className="text-sm text-slate-500 mb-4">
+        GeoActions tells you <em>what</em> to add. These generators give you ready-to-paste code.
+      </p>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {items.map(({ k, label, Icon, color }) => (
+          <button
+            key={k}
+            onClick={() => onOpen(k)}
+            className={`flex items-center gap-2 rounded-lg p-3 text-white text-sm font-semibold bg-gradient-to-br ${color} hover:opacity-90 shadow-sm`}
+          >
+            <Icon size={16} />
+            <span className="truncate">{label}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}

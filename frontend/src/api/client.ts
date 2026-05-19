@@ -457,6 +457,233 @@ export interface ScanProgressEvent {
   message?: string;
 }
 
+// ── Generators types ──────────────────────────────────────────────────────
+
+export interface GeneratorResult {
+  jsonLd: Record<string, unknown>;
+  htmlSnippet: string;
+  installInstructions: string[];
+}
+
+export interface LlmsTxtResult {
+  filename: string;
+  content: string;
+  installInstructions: string[];
+}
+
+export interface RobotsPatchResult {
+  filename: string;
+  patch: string;
+  fullFile: string;
+  installInstructions: string[];
+  botsAdded: string[];
+}
+
+export interface OrgSchemaPayload {
+  type:
+    | 'Organization'
+    | 'LocalBusiness'
+    | 'RealEstateAgent'
+    | 'Store'
+    | 'Restaurant'
+    | 'ProfessionalService';
+  name: string;
+  url: string;
+  logo?: string;
+  description?: string;
+  telephone?: string;
+  email?: string;
+  address?: {
+    streetAddress: string;
+    addressLocality: string;
+    addressRegion?: string;
+    postalCode?: string;
+    addressCountry: string;
+  };
+  social?: {
+    linkedin?: string;
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    youtube?: string;
+    wikipedia?: string;
+    crunchbase?: string;
+  };
+}
+
+export interface ArticleSchemaPayload {
+  headline: string;
+  url: string;
+  image?: string;
+  authorName: string;
+  authorUrl?: string;
+  publisherName: string;
+  publisherLogo?: string;
+  description?: string;
+  datePublished?: string;
+  dateModified?: string;
+}
+
+export interface ReviewSchemaPayload {
+  itemName: string;
+  ratingValue: string;
+  reviewCount: string;
+  reviews: Array<{ author: string; reviewBody: string; rating: string }>;
+}
+
+export interface LlmsTxtPayload {
+  siteName: string;
+  siteUrl: string;
+  summary: string;
+  details?: string;
+  primaryLinks?: Array<{ title: string; url: string; description?: string }>;
+  optionalLinks?: Array<{ title: string; url: string; description?: string }>;
+  contactEmail?: string;
+}
+
+export interface RobotsPatchPayload {
+  existingRobotsTxt?: string;
+  sitemapUrl?: string;
+}
+
+// ── On-Page SEO types ─────────────────────────────────────────────────────
+
+export interface PageSeoIssue {
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  code: string;
+  message: string;
+  fix?: string;
+}
+
+export interface PageSeoAudit {
+  url: string;
+  fetched: boolean;
+  fetchError?: string;
+  title: string | null;
+  titleLength: number;
+  metaDescription: string | null;
+  metaDescriptionLength: number;
+  h1Count: number;
+  h1Texts: string[];
+  h2Count: number;
+  canonical: string | null;
+  hasOgImage: boolean;
+  hasTwitterCard: boolean;
+  internalLinkCount: number;
+  externalLinkCount: number;
+  imageCount: number;
+  imagesWithAltCount: number;
+  wordCount: number;
+  langAttr: string | null;
+  hasHtmlLang: boolean;
+  hasViewport: boolean;
+  hasStructuredData: boolean;
+  brokenAnchorCount: number;
+  issues: PageSeoIssue[];
+  score: number;
+  scoreOutOf: number;
+}
+
+export interface CoreWebVitals {
+  url: string;
+  fetched: boolean;
+  fetchError?: string;
+  performanceScore: number | null;
+  lcp: { value: number; displayValue: string; score: number | null } | null;
+  cls: { value: number; displayValue: string; score: number | null } | null;
+  inp: { value: number; displayValue: string; score: number | null } | null;
+  tbt: { value: number; displayValue: string; score: number | null } | null;
+  fcp: { value: number; displayValue: string; score: number | null } | null;
+  ttfb: { value: number; displayValue: string; score: number | null } | null;
+  strategy: 'mobile' | 'desktop';
+}
+
+export interface OnPageSeoReport {
+  id?: string;
+  brandId: string;
+  brand: string;
+  domain: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: string | { _seconds: number };
+  completedAt?: string | { _seconds: number };
+  pages?: PageSeoAudit[];
+  vitals?: CoreWebVitals[];
+  summary?: {
+    avgScore: number;
+    totalIssues: number;
+    criticalIssues: number;
+    pagesAudited: number;
+    avgPerformance: number | null;
+  };
+  topIssues?: Array<{
+    code: string;
+    count: number;
+    message: string;
+    severity: PageSeoIssue['severity'];
+  }>;
+}
+
+// ── Content Gap types ─────────────────────────────────────────────────────
+
+export interface ContentGapItem {
+  query: string;
+  brandHasPage: boolean;
+  brandUrl?: string;
+  brandPosition?: number | null;
+  competitorsRanking: Array<{
+    domain: string;
+    url: string;
+    position: number;
+    title: string;
+  }>;
+  paa?: string[];
+  difficulty: 'easy' | 'medium' | 'hard';
+  opportunityScore: number;
+}
+
+export interface ContentGapReport {
+  id?: string;
+  brandId: string;
+  brand: string;
+  domain: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: string | { _seconds: number };
+  completedAt?: string | { _seconds: number };
+  queries?: string[];
+  items?: ContentGapItem[];
+  summary?: {
+    totalQueries: number;
+    brandHasPageCount: number;
+    gapCount: number;
+    avgOpportunity: number;
+  };
+}
+
+export interface PaaResult {
+  seed: string;
+  questions: string[];
+  relatedSearches: string[];
+}
+
+// ── Onboarding types ──────────────────────────────────────────────────────
+
+export interface OnboardingAnalysis {
+  domain: string;
+  brand: string;
+  category: string | null;
+  country: string;
+  keywords: string[];
+  suggestedCompetitors: string[];
+  crawlError: string | null;
+}
+
+export interface OnboardingStartResult {
+  aiScan: { ok: boolean; data?: { scanId: string; brandId: string }; error?: string };
+  competitorAudit: { ok: boolean; data?: { scanId: string; brandId: string }; error?: string };
+  brandPresence: { ok: boolean; data?: { reportId: string; brandId: string }; error?: string };
+  onPageSeo: { ok: boolean; data?: { reportId: string; brandId: string }; error?: string };
+}
+
 export const BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ??
   'http://localhost:3000/api';
@@ -708,6 +935,144 @@ export const api = {
     const res = await http.get<GeoActionsReport>('/geo-actions', {
       params: { brand },
     });
+    return res.data;
+  },
+
+  // ── Generators (Phase A) ─────────────────────────────────────────────────
+
+  generateFaqSchema: async (
+    items: Array<{ question: string; answer: string }>,
+  ) => {
+    const res = await http.post<GeneratorResult>('/generators/schema/faq', {
+      items,
+    });
+    return res.data;
+  },
+
+  generateOrgSchema: async (payload: OrgSchemaPayload) => {
+    const res = await http.post<GeneratorResult>(
+      '/generators/schema/organization',
+      payload,
+    );
+    return res.data;
+  },
+
+  generateArticleSchema: async (payload: ArticleSchemaPayload) => {
+    const res = await http.post<GeneratorResult>(
+      '/generators/schema/article',
+      payload,
+    );
+    return res.data;
+  },
+
+  generateReviewSchema: async (payload: ReviewSchemaPayload) => {
+    const res = await http.post<GeneratorResult>(
+      '/generators/schema/review',
+      payload,
+    );
+    return res.data;
+  },
+
+  generateLlmsTxt: async (payload: LlmsTxtPayload) => {
+    const res = await http.post<LlmsTxtResult>('/generators/llms-txt', payload);
+    return res.data;
+  },
+
+  generateRobotsPatch: async (payload: RobotsPatchPayload) => {
+    const res = await http.post<RobotsPatchResult>(
+      '/generators/robots-patch',
+      payload,
+    );
+    return res.data;
+  },
+
+  // ── On-Page SEO (Phase B) ────────────────────────────────────────────────
+
+  createOnPageSeoScan: async (
+    brand: string,
+    domain: string,
+    options?: { pages?: string[]; strategy?: 'mobile' | 'desktop' },
+  ) => {
+    const res = await http.post<{ reportId: string; brandId: string }>(
+      '/on-page-seo/scan',
+      { brand, domain, ...options },
+    );
+    return res.data;
+  },
+
+  getOnPageSeoReport: async (brandId: string, reportId: string) => {
+    const res = await http.get<OnPageSeoReport>(
+      `/on-page-seo/${brandId}/${reportId}`,
+    );
+    return res.data;
+  },
+
+  listOnPageSeoReports: async (brand: string) => {
+    const res = await http.get<OnPageSeoReport[]>('/on-page-seo', {
+      params: { brand },
+    });
+    return res.data;
+  },
+
+  // ── Content Gap (Phase C) ────────────────────────────────────────────────
+
+  createContentGapScan: async (payload: {
+    brand: string;
+    domain: string;
+    queries: string[];
+    competitorDomains?: string[];
+    country?: string;
+  }) => {
+    const res = await http.post<{ reportId: string; brandId: string }>(
+      '/content-gap/scan',
+      payload,
+    );
+    return res.data;
+  },
+
+  getContentGapReport: async (brandId: string, reportId: string) => {
+    const res = await http.get<ContentGapReport>(
+      `/content-gap/${brandId}/${reportId}`,
+    );
+    return res.data;
+  },
+
+  listContentGapReports: async (brand: string) => {
+    const res = await http.get<ContentGapReport[]>('/content-gap', {
+      params: { brand },
+    });
+    return res.data;
+  },
+
+  fetchPaa: async (seeds: string[], country?: string) => {
+    const res = await http.post<PaaResult[]>('/content-gap/paa', {
+      seeds,
+      country,
+    });
+    return res.data;
+  },
+
+  // ── Onboarding (Phase E) ─────────────────────────────────────────────────
+
+  analyzeOnboarding: async (domain: string, country?: string) => {
+    const res = await http.post<OnboardingAnalysis>('/onboarding/analyze', {
+      domain,
+      country,
+    });
+    return res.data;
+  },
+
+  startOnboarding: async (payload: {
+    brand: string;
+    domain: string;
+    category: string;
+    competitors: string[];
+    country?: string;
+  }) => {
+    const res = await http.post<OnboardingStartResult>(
+      '/onboarding/start',
+      payload,
+    );
     return res.data;
   },
 
