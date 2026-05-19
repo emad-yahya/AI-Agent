@@ -65,16 +65,24 @@ export class OnboardingService {
       const h1Joined = crawl.page.h1.join(' ');
       keywords = crawl.keywords.slice(0, 12);
 
-      // Brand guess from <title> (strip common suffixes like " | Best Real Estate")
-      if (title) {
-        const titleBrand = title.split(/[|\-–—]/)[0].trim();
-        if (titleBrand && titleBrand.length >= 2 && titleBrand.length <= 80) {
-          brand = titleBrand;
+      // Detect anti-bot pages (captcha, cloudflare challenge, "verify human") — they
+      // poison brand/category guesses if treated as real homepages.
+      const blockedSignal = /captcha|verify (you are|that you)|cloudflare|access denied|forbidden|are you a robot/i;
+      const looksBlocked =
+        blockedSignal.test(title) || blockedSignal.test(h1Joined);
+      if (looksBlocked) {
+        crawlError = `Anti-bot / captcha page detected — using domain-only guess`;
+      } else {
+        // Brand guess from <title> (strip common suffixes like " | Best Real Estate")
+        if (title) {
+          const titleBrand = title.split(/[|\-–—]/)[0].trim();
+          if (titleBrand && titleBrand.length >= 2 && titleBrand.length <= 80) {
+            brand = titleBrand;
+          }
         }
+        const corpus = `${title} ${desc} ${h1Joined} ${keywords.join(' ')}`;
+        category = this.guessCategory(corpus);
       }
-
-      const corpus = `${title} ${desc} ${h1Joined} ${keywords.join(' ')}`;
-      category = this.guessCategory(corpus);
     } catch (err) {
       crawlError = (err as Error).message;
       this.logger.warn(`Onboarding crawl failed for ${domain}: ${crawlError}`);
@@ -184,10 +192,52 @@ export class OnboardingService {
     'forbes.com',
     'g2.com',
     'capterra.com',
+    'getapp.com',
+    'getapp.ae',
+    'indeed.com',
+    'builtin.com',
+    'builtinnyc.com',
+    'businesschief.eu',
+    'datamation.com',
+    'topstartups.io',
+    'seedtable.com',
+    'naukrigulf.com',
+    'lusha.com',
+    'similarweb.com',
+    'softwareadvice.com',
+    'trustpilot.com',
+    'bbb.org',
+    'pcmag.com',
+    'cnet.com',
+    'techradar.com',
+    'wired.com',
+    'theverge.com',
+    'github.com',
+    'stackoverflow.com',
+    'producthunt.com',
+    'angel.co',
+    'pitchbook.com',
+    'owler.com',
+    'zoominfo.com',
+    'apollo.io',
+    'ycombinator.com',
+    'news.ycombinator.com',
+    'mikesonders.com',
   ]);
 
+  private static readonly DIRECTORY_PATTERNS: RegExp[] = [
+    /jobs?\./,
+    /careers?\./,
+    /blog\./,
+    /\.blog$/,
+    /reviews?\./,
+    /\.wiki(pedia)?$/,
+    /\.medium\./,
+  ];
+
   private isDirectoryDomain(domain: string): boolean {
-    return OnboardingService.DIRECTORY_DOMAINS.has(domain);
+    if (OnboardingService.DIRECTORY_DOMAINS.has(domain)) return true;
+    return OnboardingService.DIRECTORY_PATTERNS.some((p) => p.test(domain));
   }
 
   private guessBrandFromDomain(domain: string): string {
@@ -198,10 +248,18 @@ export class OnboardingService {
   }
 
   private guessCategory(corpus: string): string | null {
+    // Count occurrences for every pattern, pick the one with most hits.
+    // Single regex match wins over single hit too; ties broken by list order.
+    const scores: Array<{ category: string; score: number }> = [];
     for (const { re, category } of CATEGORY_HINT_PATTERNS) {
-      if (re.test(corpus)) return category;
+      const all = corpus.match(new RegExp(re.source, 'gi'));
+      if (all && all.length > 0) {
+        scores.push({ category, score: all.length });
+      }
     }
-    return null;
+    if (scores.length === 0) return null;
+    scores.sort((a, b) => b.score - a.score);
+    return scores[0].category;
   }
 
   private guessCountry(domain: string): string | null {

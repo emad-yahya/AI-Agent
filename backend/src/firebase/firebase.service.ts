@@ -14,6 +14,11 @@ export class FirebaseService implements OnModuleInit {
       admin.initializeApp({ credential: this.loadCredential() });
     }
     this.db = admin.firestore();
+    // Drop undefined fields silently instead of throwing. Otherwise any optional
+    // field that ends up undefined (e.g. brandUrl when brand not in SERP,
+    // kg?.title when no Knowledge Panel) aborts the whole write and the report
+    // is stuck in "failed" status. Better to omit the field than fail the scan.
+    this.db.settings({ ignoreUndefinedProperties: true });
     this.logger.log('Firestore connected');
   }
 

@@ -137,16 +137,18 @@ export class ContentGapService {
     if (difficulty === 'hard') opportunity -= 15;
     opportunity = Math.max(0, Math.min(100, opportunity));
 
-    return {
+    const item: ContentGapItem = {
       query,
       brandHasPage,
-      brandUrl: brand.item?.link,
       brandPosition: brand.position,
       competitorsRanking: competitorsRanking.slice(0, 5),
       paa,
       difficulty,
       opportunityScore: opportunity,
     };
+    // Firestore rejects undefined — only set brandUrl when present
+    if (brand.item?.link) item.brandUrl = brand.item.link;
+    return item;
   }
 
   private scoreDifficulty(

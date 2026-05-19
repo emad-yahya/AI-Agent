@@ -192,9 +192,15 @@ export class AIService {
     try {
       const result = await model.generateContent(userMessage);
       const text = result.response.text();
-      const citations = useSearch
+      const rawCitations = useSearch
         ? this.extractGeminiCitations(result.response)
         : [];
+      // Vertex AI grounding URIs are proxy redirects. Unwrap to the actual
+      // source URL so the user sees real domains (nytimes.com, zillow.com)
+      // instead of identical vertexaisearch.cloud.google.com placeholders.
+      const citations = useSearch
+        ? await this.unwrapVertexUris(rawCitations)
+        : rawCitations;
       return { text, citations };
     } catch (err) {
       const msg = (err as Error).message ?? '';
@@ -221,6 +227,40 @@ export class AIService {
   // Extract unique URIs — these are the exact pages AI engines read to answer
   // shopper queries about the category. Knowing them tells the brand WHERE to
   // fight for visibility (guest posts, listicle inclusion, PR pitches).
+  /**
+   * Resolves Vertex AI Search proxy URIs to their real destination URLs.
+   * Vertex returns `https://vertexaisearch.cloud.google.com/grounding-api-redirect/...`
+   * which the user has no way to interpret. We HEAD-request each (with short
+   * timeout) and follow redirects to extract the actual source.
+   * Falls back to the original URI if resolution fails.
+   */
+  private async unwrapVertexUris(uris: string[]): Promise<string[]> {
+    const out = await Promise.all(
+      uris.map(async (uri) => {
+        if (!uri.includes('vertexaisearch.cloud.google.com')) return uri;
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 4000);
+          // Use GET (HEAD can be 405 on some redirects) but cap response with no body read
+          const res = await fetch(uri, {
+            method: 'GET',
+            redirect: 'follow',
+            signal: controller.signal,
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (compatible; AIVisibilityBot/1.0; +https://aivisibility.local)',
+            },
+          });
+          clearTimeout(timeout);
+          return res.url || uri;
+        } catch {
+          return uri;
+        }
+      }),
+    );
+    return [...new Set(out)];
+  }
+
   private extractGeminiCitations(response: unknown): string[] {
     try {
       const r = response as {
