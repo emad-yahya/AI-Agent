@@ -202,15 +202,17 @@ export class CompetitorAuditService {
     domain: string,
     country?: string,
   ): Promise<SiteAudit> {
-    const baseUrl = `https://${domain}`;
-    const home = await this.tryFetchText(baseUrl);
+    // Try https/http × bare/www. Some sites (e.g. SSL quirks, www-only configs)
+    // only respond on one variant. Use whichever returns first as the canonical
+    // base for subsequent /llms.txt /robots.txt /sitemap.xml fetches.
+    const homeResult = await this.fetchHomepageWithFallback(domain);
+    if (!homeResult) {
+      return this.unreachableAudit(name, domain, `https://${domain}`);
+    }
+    const { html: home, baseUrl } = homeResult;
     const llmsTxt = await this.tryFetchText(`${baseUrl}/llms.txt`);
     const robotsTxt = await this.tryFetchText(`${baseUrl}/robots.txt`);
     const sitemap = await this.tryFetchText(`${baseUrl}/sitemap.xml`);
-
-    if (!home) {
-      return this.unreachableAudit(name, domain, baseUrl);
-    }
 
     const homeAnalysis = this.parseHomepage(home);
     const aiBots = this.parseAiBotPolicy(robotsTxt ?? '');
@@ -286,6 +288,35 @@ export class CompetitorAuditService {
       scoreOutOf: SIGNAL_MAX,
       signals: SIGNAL_RUBRIC.map((s) => ({ ...s, passed: false })),
     };
+  }
+
+  /**
+   * Tries multiple URL variants (https/http × bare/www) until one returns a
+   * usable homepage. Returns the html + the baseUrl that worked so callers can
+   * fetch sibling paths (/llms.txt, /robots.txt, /sitemap.xml) on the same host.
+   */
+  private async fetchHomepageWithFallback(
+    domain: string,
+  ): Promise<{ html: string; baseUrl: string } | null> {
+    const bare = domain.replace(/^www\./, '');
+    const candidates = [
+      `https://${bare}`,
+      `https://www.${bare}`,
+      `http://${bare}`,
+      `http://www.${bare}`,
+    ];
+    for (const baseUrl of candidates) {
+      const html = await this.tryFetchText(baseUrl);
+      if (html) {
+        if (baseUrl !== candidates[0]) {
+          this.logger.warn(
+            `Homepage fallback for ${domain}: used ${baseUrl} (primary failed)`,
+          );
+        }
+        return { html, baseUrl };
+      }
+    }
+    return null;
   }
 
   private async tryFetchText(url: string): Promise<string | null> {

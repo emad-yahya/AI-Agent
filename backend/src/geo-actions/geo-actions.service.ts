@@ -481,15 +481,15 @@ export class GeoActionsService {
       case 'allowsGPTBot':
         return [
           'Open your /robots.txt file',
-          'Add (or remove the block on): User-agent: GPTBot\\nAllow: /',
-          'Same for: ChatGPT-User',
+          'Add (or remove the block on) these two lines: "User-agent: GPTBot" then "Allow: /"',
+          'Add the same pair for: "User-agent: ChatGPT-User" then "Allow: /"',
           'Without this, OpenAI cannot crawl your site for ChatGPT answers',
         ];
       case 'allowsAnthropic':
         return [
           'Open your /robots.txt file',
-          'Add: User-agent: ClaudeBot\\nAllow: /',
-          'Add: User-agent: anthropic-ai\\nAllow: /',
+          'Add these two lines: "User-agent: ClaudeBot" then "Allow: /"',
+          'Add these two lines: "User-agent: anthropic-ai" then "Allow: /"',
           'Without this, Anthropic cannot index your site for Claude answers',
         ];
       case 'hasSitemap':

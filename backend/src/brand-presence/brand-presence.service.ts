@@ -61,8 +61,17 @@ export class BrandPresenceService {
     const ref = this.firebase.brandPresenceReports(brandId).doc(reportId);
     try {
       const allBrands = [dto.brand, ...dto.competitors];
+      // Per-brand try/catch — one brand failure must not abort the whole report.
+      // Returns a 0-score `unreachable`-style check so the UI can still render.
       const checks = await Promise.all(
-        allBrands.map((name) => this.checkPresence(name, dto.country)),
+        allBrands.map((name) =>
+          this.checkPresence(name, dto.country).catch((err: Error) => {
+            this.logger.warn(
+              `Presence check failed for "${name}": ${err.message}`,
+            );
+            return this.unreachableCheck(name);
+          }),
+        ),
       );
       const brandCheck = checks[0];
       const competitorChecks = checks.slice(1);
@@ -83,8 +92,19 @@ export class BrandPresenceService {
       await ref.update({ status: 'failed' });
       this.logger.error(
         `Brand presence ${reportId} failed: ${(err as Error).message}`,
+        (err as Error).stack,
       );
     }
+  }
+
+  private unreachableCheck(name: string): BrandPresenceCheck {
+    return {
+      name,
+      hasKnowledgePanel: false,
+      hasWikipedia: false,
+      presenceScore: 0,
+      signals: PRESENCE_RUBRIC.map((r) => ({ ...r, passed: false })),
+    };
   }
 
   /**
