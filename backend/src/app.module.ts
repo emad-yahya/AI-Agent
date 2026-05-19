@@ -21,6 +21,8 @@ import { GeoActionsModule } from './geo-actions/geo-actions.module';
 import { BrandPresenceModule } from './brand-presence/brand-presence.module';
 import { GeneratorsModule } from './generators/generators.module';
 import { OnPageSeoModule } from './on-page-seo/on-page-seo.module';
+import { ContentGapModule } from './content-gap/content-gap.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { ApiKeyMiddleware } from './auth/api-key.middleware';
 
 const redisUrl = process.env.REDIS_URL;
@@ -58,6 +60,8 @@ const redisUrl = process.env.REDIS_URL;
     BrandPresenceModule,
     GeneratorsModule,
     OnPageSeoModule,
+    ContentGapModule,
+    OnboardingModule,
   ],
 })
 export class AppModule implements NestModule {

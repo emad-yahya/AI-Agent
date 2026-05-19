@@ -372,6 +372,41 @@ export interface CoreWebVitals {
   strategy: 'mobile' | 'desktop';
 }
 
+export interface ContentGapItem {
+  query: string;
+  brandHasPage: boolean;
+  brandUrl?: string;
+  brandPosition?: number | null;
+  competitorsRanking: Array<{ domain: string; url: string; position: number; title: string }>;
+  paa?: string[];
+  difficulty: 'easy' | 'medium' | 'hard';
+  opportunityScore: number;
+}
+
+export interface ContentGapReport {
+  id?: string;
+  brandId: string;
+  brand: string;
+  domain: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: firestore.Timestamp;
+  completedAt?: firestore.Timestamp;
+  queries?: string[];
+  items?: ContentGapItem[];
+  summary?: {
+    totalQueries: number;
+    brandHasPageCount: number;
+    gapCount: number;
+    avgOpportunity: number;
+  };
+}
+
+export interface PaaResult {
+  seed: string;
+  questions: string[];
+  relatedSearches: string[];
+}
+
 export interface OnPageSeoReport {
   id?: string;
   brandId: string;
