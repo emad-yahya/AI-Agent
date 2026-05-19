@@ -322,6 +322,76 @@ export interface CompetitorAuditScan {
   }>;
 }
 
+export interface PageSeoAudit {
+  url: string;
+  fetched: boolean;
+  fetchError?: string;
+  title: string | null;
+  titleLength: number;
+  metaDescription: string | null;
+  metaDescriptionLength: number;
+  h1Count: number;
+  h1Texts: string[];
+  h2Count: number;
+  canonical: string | null;
+  hasOgImage: boolean;
+  hasTwitterCard: boolean;
+  internalLinkCount: number;
+  externalLinkCount: number;
+  imageCount: number;
+  imagesWithAltCount: number;
+  wordCount: number;
+  langAttr: string | null;
+  hasHtmlLang: boolean;
+  hasViewport: boolean;
+  hasStructuredData: boolean;
+  brokenAnchorCount: number;
+  issues: PageSeoIssue[];
+  score: number;
+  scoreOutOf: number;
+}
+
+export interface PageSeoIssue {
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  code: string;
+  message: string;
+  fix?: string;
+}
+
+export interface CoreWebVitals {
+  url: string;
+  fetched: boolean;
+  fetchError?: string;
+  performanceScore: number | null;
+  lcp: { value: number; displayValue: string; score: number | null } | null;
+  cls: { value: number; displayValue: string; score: number | null } | null;
+  inp: { value: number; displayValue: string; score: number | null } | null;
+  tbt: { value: number; displayValue: string; score: number | null } | null;
+  fcp: { value: number; displayValue: string; score: number | null } | null;
+  ttfb: { value: number; displayValue: string; score: number | null } | null;
+  strategy: 'mobile' | 'desktop';
+}
+
+export interface OnPageSeoReport {
+  id?: string;
+  brandId: string;
+  brand: string;
+  domain: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: firestore.Timestamp;
+  completedAt?: firestore.Timestamp;
+  pages?: PageSeoAudit[];
+  vitals?: CoreWebVitals[];
+  summary?: {
+    avgScore: number;
+    totalIssues: number;
+    criticalIssues: number;
+    pagesAudited: number;
+    avgPerformance: number | null;
+  };
+  topIssues?: Array<{ code: string; count: number; message: string; severity: PageSeoIssue['severity'] }>;
+}
+
 export interface SeoSiteScan {
   id?: string;
   siteId: string;

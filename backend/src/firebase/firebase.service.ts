@@ -92,6 +92,18 @@ export class FirebaseService implements OnModuleInit {
     return this.brands().doc(brandId).collection('brandPresenceReports');
   }
 
+  onPageSeoReports(brandId: string) {
+    return this.brands().doc(brandId).collection('onPageSeoReports');
+  }
+
+  serpRankScans(brandId: string) {
+    return this.brands().doc(brandId).collection('serpRankScans');
+  }
+
+  contentGapScans(brandId: string) {
+    return this.brands().doc(brandId).collection('contentGapScans');
+  }
+
   alertSettings(brandId: string) {
     return this.brands().doc(brandId).collection('config').doc('alerts');
   }

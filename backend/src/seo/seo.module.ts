@@ -7,6 +7,6 @@ import { SerperService } from './serper.service';
 @Module({
   controllers: [SeoController],
   providers: [SeoService, CrawlerService, SerperService],
-  exports: [SeoService, SerperService],
+  exports: [SeoService, SerperService, CrawlerService],
 })
 export class SeoModule {}
