@@ -1,5 +1,5 @@
 # CURRENT_STATUS.md
-_آخر تحديث: 2026-05-18 (Session 30)_
+_آخر تحديث: 2026-05-19 (Session 31)_
 
 ## 🎯 GEO Vision — الهدف النهائي
 السستم يجب أن يتحول من **يقيس** visibility إلى **يحسّن** ranking على AI engines، بحيث أي عميل يسأل ChatGPT/Gemini/Perplexity عن أي شي له علاقة بمجال البراند → اسم البراند يطلع باول النتائج.
@@ -12,8 +12,27 @@ _آخر تحديث: 2026-05-18 (Session 30)_
 | 1 | Citation Extractor | ✅ Session 27 | يستخرج URLs اللي Gemini grounding قراها لكل scan |
 | 2 | Listicle Gap Finder | ✅ Session 28 | Serper search على "best X in Y" → scrape أول 20 نتيجة → يحدد مقالات تذكر منافسيك وما تذكرك |
 | 3 | Competitor Site Fingerprint (Schema/llms.txt Audit) | ✅ Session 29 | Crawl موقع كل منافس + الموقع تبعك، مقارنة schemas + llms.txt + robots/AI-bots + indexed pages |
-| 4 | Backlink Gap | ⬜ Tier 1 #4 (يحتاج Ahrefs/DataForSEO API ~$50/mo) | من يلينك للمنافس وما يلينك لك |
+| 4 | Backlink Gap | ⏸️ مؤجل (يحتاج Ahrefs/DataForSEO API ~$50/mo، البدائل المجانية أقوى لـGEO) | من يلينك للمنافس وما يلينك لك |
 | 5 | Data-driven Recommendations (GEO Actions) | ✅ Session 30 | استبدال generic Gemini recs بـactions حقيقية مرتبة بأولوية، كل توصية لها مصدر بيانات قابل للنقر |
+| 6 | Brand Presence (Knowledge Panel + Wikipedia) | ✅ Session 31 | يفحص Knowledge Panel + Wikipedia presence للبراند vs المنافسين — Gemini ركّز عـKG، ChatGPT ركّز عـWikipedia |
+
+---
+
+### [2026-05-19] Session 31 — Brand Presence: Knowledge Panel + Wikipedia (free Backlink alternative)
+
+**ليه:**
+Backlink Gap يحتاج Ahrefs $50/mo. للـGEO تحديداً، Knowledge Panel + Wikipedia أقوى signals من backlinks raw — Gemini يعتمد على KG، ChatGPT training يثقّل Wikipedia. مجاني (Serper + Wikipedia REST API).
+
+**التطبيق:**
+- Module جديد `brand-presence/`: للبراند + competitors:
+  - Serper search → `response.knowledgeGraph` يكشف Knowledge Panel
+  - Wikipedia REST API يكشف وجود مقال (يفلتر disambiguation)
+- Endpoint: `POST /api/brand-presence/check`
+- Firestore: `brandPresenceReports`
+- Frontend: `BrandPresencePanel.tsx` (ScoreCards + Gap matrix)
+- مدمج بـGeoActions: synthesizer جديد يولّد actions حرجة لو KP/Wikipedia ناقصة + المنافسين عندهم
+
+**جاي:** Mention Gap (Serper-based)، Reddit/HN Community، Schema Auto-Generator، AI Bot Logger.
 
 ---
 

@@ -366,6 +366,36 @@ export interface GeoActionsReport {
   };
 }
 
+export interface BrandPresenceCheck {
+  name: string;
+  hasKnowledgePanel: boolean;
+  knowledgePanelTitle?: string;
+  knowledgePanelDescription?: string;
+  hasWikipedia: boolean;
+  wikipediaUrl?: string;
+  wikipediaExtract?: string;
+  presenceScore: number;
+  signals: Array<{ key: string; label: string; passed: boolean }>;
+}
+
+export interface BrandPresenceReport {
+  id?: string;
+  brandId: string;
+  brand: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: string | { seconds: number };
+  completedAt?: string | { seconds: number };
+  brandCheck?: BrandPresenceCheck;
+  competitorChecks?: BrandPresenceCheck[];
+  gapSummary?: Array<{
+    key: string;
+    label: string;
+    yourStatus: boolean;
+    competitorsWithIt: number;
+    totalCompetitors: number;
+  }>;
+}
+
 export interface AiBotAccess {
   GPTBot: boolean;
   ChatGPTUser: boolean;
@@ -643,6 +673,32 @@ export const api = {
 
   listCompetitorAudits: async (brand: string) => {
     const res = await http.get<CompetitorAuditScan[]>('/competitor-audit', {
+      params: { brand },
+    });
+    return res.data;
+  },
+
+  createBrandPresenceCheck: async (
+    brand: string,
+    competitors: string[],
+    country?: string,
+  ) => {
+    const res = await http.post<{ reportId: string; brandId: string }>(
+      '/brand-presence/check',
+      { brand, competitors, country },
+    );
+    return res.data;
+  },
+
+  getBrandPresenceReport: async (brandId: string, reportId: string) => {
+    const res = await http.get<BrandPresenceReport>(
+      `/brand-presence/${brandId}/${reportId}`,
+    );
+    return res.data;
+  },
+
+  listBrandPresenceReports: async (brand: string) => {
+    const res = await http.get<BrandPresenceReport[]>('/brand-presence', {
       params: { brand },
     });
     return res.data;

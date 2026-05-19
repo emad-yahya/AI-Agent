@@ -2,6 +2,41 @@
 
 ---
 
+## [2026-05-19] — Session 31: Brand Presence — Knowledge Panel + Wikipedia Detector
+
+### Goal
+Free alternative to paid Backlink Gap (Ahrefs $50/mo). For GEO specifically, two free signals matter more than raw backlinks:
+- **Google Knowledge Panel** — Gemini relies heavily on Knowledge Graph
+- **Wikipedia article** — heavily weighted in ChatGPT training corpus
+
+Both checks use existing Serper key + free Wikipedia REST API.
+
+### Backend
+- New module `backend/src/brand-presence/`:
+  - `dto.ts` — `CreateBrandPresenceDto` (brand + competitors[] max 6 + optional country)
+  - `brand-presence.service.ts`:
+    - `createReport` returns immediately, runs in background
+    - `checkPresence(name, country)` — parallel: Serper search → `response.knowledgeGraph` for KP detection + Wikipedia REST API `/api/rest_v1/page/summary/{title}` for article detection (filters out `type === 'disambiguation'` pages)
+    - 2-signal scoring rubric + `buildGapSummary` cross-references brand vs competitors
+  - `brand-presence.controller.ts` — `POST /api/brand-presence/check`, `GET /api/brand-presence?brand=`, `GET /:brandId/:reportId`
+  - `brand-presence.module.ts` — imports `FirebaseModule`, `SeoModule` (for SerperService)
+- `common/types.ts` — `BrandPresenceCheck`, `BrandPresenceReport` types + added `'brand-presence'` to `GeoActionEvidence.type` union + added `'presence'` to `GeoActionCategory`
+- `firebase/firebase.service.ts` — `brandPresenceReports(brandId)` collection helper
+- `app.module.ts` — `BrandPresenceModule` registered
+- **GeoActions integration:** `geo-actions.service.ts` now pulls latest brand-presence report alongside other scans, new `synthesizeFromPresence` generates critical/high-priority actions when brand lacks KP/Wikipedia but competitors have them (with specific steps for getting onto each)
+
+### Frontend
+- `api/client.ts` — types + `createBrandPresenceCheck`, `getBrandPresenceReport`, `listBrandPresenceReports`
+- `components/BrandPresencePanel.tsx` (NEW) — auto-fills competitors from current scan's topics, polls every 3.5s, renders per-brand PresenceCard (✓ Knowledge Panel + ✓ Wikipedia with extract preview link) + gap matrix
+- `App.tsx` — `BrandPresencePanel` rendered after `CompetitorAuditPanel`, before `GeoActionsPanel`
+
+### Test plan
+- ✅ Backend: 63/63 jest pass
+- ✅ Backend + frontend: builds clean
+- ⏳ Pending live test on prod after deploy
+
+---
+
 ## [2026-05-19] — Session 30: GEO Actions — Data-driven Recommendations (Tier 1 #5)
 
 ### Goal

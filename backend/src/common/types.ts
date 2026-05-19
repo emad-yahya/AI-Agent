@@ -179,18 +179,54 @@ export interface ListicleGapScan {
   brandMentionedCount?: number;
 }
 
+export interface BrandPresenceCheck {
+  name: string;
+  hasKnowledgePanel: boolean;
+  knowledgePanelTitle?: string;
+  knowledgePanelDescription?: string;
+  hasWikipedia: boolean;
+  wikipediaUrl?: string;
+  wikipediaExtract?: string;
+  presenceScore: number;
+  signals: Array<{ key: string; label: string; passed: boolean }>;
+}
+
+export interface BrandPresenceReport {
+  id?: string;
+  brandId: string;
+  brand: string;
+  status: 'running' | 'done' | 'failed';
+  createdAt: firestore.Timestamp;
+  completedAt?: firestore.Timestamp;
+  brandCheck?: BrandPresenceCheck;
+  competitorChecks?: BrandPresenceCheck[];
+  gapSummary?: Array<{
+    key: string;
+    label: string;
+    yourStatus: boolean;
+    competitorsWithIt: number;
+    totalCompetitors: number;
+  }>;
+}
+
 export type GeoActionCategory =
   | 'schema'
   | 'crawler-access'
   | 'citation'
   | 'listicle'
   | 'engine-weakness'
+  | 'presence'
   | 'content';
 
 export type GeoActionPriority = 'critical' | 'high' | 'medium' | 'low';
 
 export interface GeoActionEvidence {
-  type: 'ai-scan' | 'citation' | 'listicle-gap' | 'competitor-audit';
+  type:
+    | 'ai-scan'
+    | 'citation'
+    | 'listicle-gap'
+    | 'competitor-audit'
+    | 'brand-presence';
   scanId?: string;
   scanType?: string;
   detail?: string;
@@ -219,9 +255,11 @@ export interface GeoActionsReport {
     hasAiScan: boolean;
     hasListicleGap: boolean;
     hasCompetitorAudit: boolean;
+    hasBrandPresence: boolean;
     aiScanId?: string;
     listicleGapScanId?: string;
     competitorAuditScanId?: string;
+    brandPresenceReportId?: string;
   };
   summary: {
     total: number;

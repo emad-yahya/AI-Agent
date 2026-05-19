@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import {
+  BrandPresenceReport,
   CompetitorAuditScan,
   CompetitorGap,
   GeoAction,
@@ -36,16 +37,18 @@ export class GeoActionsService {
     const brandDoc = brandSnap.docs[0];
     const brandId = brandDoc.id;
 
-    const [aiScan, listicleScan, auditScan] = await Promise.all([
+    const [aiScan, listicleScan, auditScan, presenceReport] = await Promise.all([
       this.latestAiScan(brandId),
       this.latestListicleGap(brandId),
       this.latestCompetitorAudit(brandId),
+      this.latestBrandPresence(brandId),
     ]);
 
     const actions: GeoAction[] = [];
     if (auditScan) actions.push(...this.synthesizeFromAudit(auditScan));
     if (listicleScan) actions.push(...this.synthesizeFromListicle(listicleScan));
     if (aiScan) actions.push(...this.synthesizeFromAiScan(aiScan, brandName));
+    if (presenceReport) actions.push(...this.synthesizeFromPresence(presenceReport));
 
     const sorted = actions.sort((a, b) => b.score - a.score);
 
@@ -69,9 +72,11 @@ export class GeoActionsService {
         hasAiScan: !!aiScan,
         hasListicleGap: !!listicleScan,
         hasCompetitorAudit: !!auditScan,
+        hasBrandPresence: !!presenceReport,
         aiScanId: aiScan?.scanId,
         listicleGapScanId: listicleScan?.id,
         competitorAuditScanId: auditScan?.id,
+        brandPresenceReportId: presenceReport?.id,
       },
       summary: {
         total: sorted.length,
@@ -180,6 +185,23 @@ export class GeoActionsService {
       .get();
     for (const doc of snap.docs) {
       const data = doc.data() as CompetitorAuditScan;
+      if (data.status === 'done') {
+        return { id: doc.id, ...data };
+      }
+    }
+    return null;
+  }
+
+  private async latestBrandPresence(
+    brandId: string,
+  ): Promise<BrandPresenceReport | null> {
+    const snap = await this.firebase
+      .brandPresenceReports(brandId)
+      .orderBy('createdAt', 'desc')
+      .limit(5)
+      .get();
+    for (const doc of snap.docs) {
+      const data = doc.data() as BrandPresenceReport;
       if (data.status === 'done') {
         return { id: doc.id, ...data };
       }
@@ -515,6 +537,105 @@ export class GeoActionsService {
       default:
         return 'Closes a competitive gap on a signal AI engines look at when ranking brands.';
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Presence synthesizer. Knowledge Panel + Wikipedia are training-data signals
+  // — Gemini relies heavily on Knowledge Graph, ChatGPT training corpus includes
+  // Wikipedia. Both = high-leverage when missing while competitors have them.
+  // ─────────────────────────────────────────────────────────────────────────
+  private synthesizeFromPresence(report: BrandPresenceReport): GeoAction[] {
+    const actions: GeoAction[] = [];
+    const brand = report.brandCheck;
+    const competitors = report.competitorChecks ?? [];
+    if (!brand || competitors.length === 0) return actions;
+
+    // Knowledge Panel gap
+    if (!brand.hasKnowledgePanel) {
+      const competitorsWithKP = competitors.filter((c) => c.hasKnowledgePanel);
+      if (competitorsWithKP.length > 0) {
+        const ratio = competitorsWithKP.length / competitors.length;
+        const priority: GeoActionPriority =
+          ratio >= 0.5 ? 'critical' : 'high';
+        actions.push({
+          id: 'presence-knowledge-panel',
+          category: 'presence',
+          priority,
+          title: 'Establish a Google Knowledge Panel',
+          description: `${competitorsWithKP.length}/${competitors.length} competitors have a Google Knowledge Panel and you don't. Knowledge Panels are one of the strongest signals Gemini uses to recognize and rank brands.`,
+          steps: [
+            'Verify your business on Google Business Profile (https://business.google.com)',
+            'Build a Wikipedia article first — Knowledge Panels often source from Wikipedia (see Wikipedia action below)',
+            'Get cited by authoritative sources (news outlets, industry publications) — Google Knowledge Graph pulls from these',
+            'Add Organization JSON-LD schema with sameAs links to your social profiles + Wikipedia + Crunchbase',
+            'Claim Knowledge Panel if it appears: https://support.google.com/knowledgepanel/answer/7534842',
+            `Competitors with Knowledge Panel: ${competitorsWithKP.map((c) => c.name).join(', ')}`,
+          ],
+          effort: 'ongoing',
+          expectedImpact:
+            'Knowledge Panel = direct Gemini visibility lift + Google SERP real estate. Strongest single brand-recognition signal.',
+          evidence: {
+            type: 'brand-presence',
+            scanId: report.id,
+            scanType: 'brand-presence',
+            detail: `Competitors with Knowledge Panel: ${competitorsWithKP
+              .map((c) => `${c.name} (${c.knowledgePanelTitle ?? 'verified'})`)
+              .join(', ')}`,
+            values: {
+              competitorsWithKP: competitorsWithKP.length,
+              totalCompetitors: competitors.length,
+            },
+          },
+          score: 95 + (priority === 'critical' ? 10 : 0),
+        });
+      }
+    }
+
+    // Wikipedia gap
+    if (!brand.hasWikipedia) {
+      const competitorsWithWiki = competitors.filter((c) => c.hasWikipedia);
+      if (competitorsWithWiki.length > 0) {
+        const ratio = competitorsWithWiki.length / competitors.length;
+        const priority: GeoActionPriority = ratio >= 0.5 ? 'high' : 'medium';
+        actions.push({
+          id: 'presence-wikipedia',
+          category: 'presence',
+          priority,
+          title: 'Get a Wikipedia article for your brand',
+          description: `${competitorsWithWiki.length}/${competitors.length} competitors have Wikipedia pages and you don't. Wikipedia is heavily weighted in ChatGPT's training corpus and feeds Google's Knowledge Graph.`,
+          steps: [
+            'Build notability first — Wikipedia requires significant coverage in independent reliable sources (3+ in-depth articles from established media)',
+            'Have a third-party editor draft the article — direct self-creation violates Wikipedia\'s Conflict of Interest policy and gets pages deleted',
+            'Cite only secondary sources (news articles, industry analyses) — never your own site or press releases',
+            'Focus on factual encyclopedic tone, NOT marketing copy',
+            'Submit via Articles for Creation (AfC) so an editor reviews before publication',
+            `Competitor Wikipedia URLs: ${competitorsWithWiki
+              .map((c) => c.wikipediaUrl ?? c.name)
+              .filter(Boolean)
+              .join(', ')}`,
+          ],
+          effort: 'ongoing',
+          expectedImpact:
+            'Wikipedia entry → ChatGPT training data inclusion + boost toward Knowledge Panel + authoritative citation that lifts all AI-engine confidence.',
+          evidence: {
+            type: 'brand-presence',
+            scanId: report.id,
+            scanType: 'brand-presence',
+            detail: `Competitor Wikipedia pages`,
+            urls: competitorsWithWiki
+              .map((c) => c.wikipediaUrl ?? '')
+              .filter(Boolean),
+            values: {
+              competitorsWithWikipedia: competitorsWithWiki.length,
+              totalCompetitors: competitors.length,
+            },
+          },
+          score: 80 + (priority === 'high' ? 10 : 0),
+        });
+      }
+    }
+
+    return actions;
   }
 
   // Helper to avoid unused-var warning when types reference SiteAudit only structurally

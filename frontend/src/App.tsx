@@ -18,6 +18,7 @@ import { TopicsPanel } from './components/TopicsPanel';
 import { CitationsPanel } from './components/CitationsPanel';
 import { ListicleGapPanel } from './components/ListicleGapPanel';
 import { CompetitorAuditPanel } from './components/CompetitorAuditPanel';
+import { BrandPresencePanel } from './components/BrandPresencePanel';
 import { GeoActionsPanel } from './components/GeoActionsPanel';
 import { CompetitorTrendChart } from './components/CompetitorTrend';
 import { AlertSettings } from './components/AlertSettings';
@@ -191,6 +192,10 @@ export default function App() {
                       results={scanResult.results}
                     />
                     <CompetitorAuditPanel
+                      brand={scanMeta.brand}
+                      results={scanResult.results}
+                    />
+                    <BrandPresencePanel
                       brand={scanMeta.brand}
                       results={scanResult.results}
                     />

@@ -88,6 +88,10 @@ export class FirebaseService implements OnModuleInit {
     return this.brands().doc(brandId).collection('competitorAuditScans');
   }
 
+  brandPresenceReports(brandId: string) {
+    return this.brands().doc(brandId).collection('brandPresenceReports');
+  }
+
   alertSettings(brandId: string) {
     return this.brands().doc(brandId).collection('config').doc('alerts');
   }
