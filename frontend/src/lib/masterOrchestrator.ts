@@ -48,6 +48,28 @@ const NON_COMPANY_PHRASES = new Set([
     'explore nearby areas', 'nearby areas', 'price range', 'square feet',
     'good location', 'prime location', 'central location', 'public transport',
     'customer service', 'customer support', 'free wifi', 'great views',
+    // Real estate / property concepts (not brands)
+    'resale value', 'developer reputation', 'built villas', 'signature villas',
+    'payment plans', 'rental yield', 'rental yields', 'capital appreciation',
+    'return on investment', 'market trend', 'market trends', 'property type',
+    'property types', 'investment opportunity', 'investment opportunities',
+    'off plan', 'off-plan', 'ready property', 'ready properties',
+    'freehold property', 'leasehold property', 'title deed', 'title deeds',
+    'monthly rent', 'annual rent', 'down payment', 'service fee', 'service fees',
+    'maintenance fee', 'maintenance fees', 'community fee', 'community fees',
+]);
+
+// Generic marketplaces / aggregators / review sites — they appear in AI answers
+// but are not direct brand competitors (they distribute the user's listings).
+// Lowercase, exact-domain match.
+const MARKETPLACE_DOMAINS = new Set([
+    'propertyfinder.ae', 'bayut.com', 'dubizzle.com', 'zillow.com',
+    'trulia.com', 'realtor.com', 'rightmove.co.uk', 'zoopla.co.uk',
+    'redfin.com', 'idealista.com', 'immoscout24.de', 'realestate.com.au',
+    'domain.com.au', 'magicbricks.com', '99acres.com', 'housing.com',
+    // generic listing brand names (as text, not domain)
+    'property finder', 'bayut', 'dubizzle', 'zillow', 'trulia', 'rightmove',
+    'zoopla', 'redfin', 'idealista',
 ]);
 
 // Verbs and adjectives that signal a sentence fragment, not a brand name.
@@ -87,6 +109,7 @@ function isLikelyBrandName(t: string): boolean {
 
     const lower = t.toLowerCase();
     if (NON_COMPANY_PHRASES.has(lower)) return false;
+    if (MARKETPLACE_DOMAINS.has(lower)) return false;
 
     const firstLower = words[0].toLowerCase();
     if (SENTENCE_STARTERS.has(firstLower)) return false;

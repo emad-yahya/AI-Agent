@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type SeoSiteScan } from '../api/client';
+import { parseFirestoreDate } from '../lib/firestoreDate';
 import {
   LineChart,
   Line,
@@ -67,15 +68,17 @@ export function SeoTrendChart({ siteId, refreshKey }: Props) {
     .slice()
     .reverse()
     .map((s) => {
-      const d = new Date(s.createdAt);
+      const d = parseFirestoreDate(s.createdAt);
       const total = s.totalKeywords ?? s.keywords?.length ?? 0;
       const ranked = s.rankedCount ?? 0;
       return {
-        date: d.toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-        }),
-        fullDate: d.toLocaleString(),
+        date: d
+          ? d.toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+            })
+          : '—',
+        fullDate: d ? d.toLocaleString() : '—',
         avgPosition: s.avgPosition ?? null,
         rankedCount: ranked,
         coveragePct: total > 0 ? Math.round((ranked / total) * 100) : 0,

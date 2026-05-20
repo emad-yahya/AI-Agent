@@ -3,6 +3,7 @@ import { api, type SeoSiteScan, type SeoResult, type SerpFeature, type SeoAnomal
 import { Loader2, CheckCircle2, XCircle, Trophy, Sparkles, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { SeoExportButtons } from './SeoExportButtons';
 import { Hint, SectionIntro } from './Hint';
+import { formatFirestoreDate } from '../lib/firestoreDate';
 
 interface Props {
   siteId: string;
@@ -285,7 +286,7 @@ export function SeoSiteResults({ siteId, scanId, brand, domain }: Props) {
       {/* Export buttons */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-500">
-          {brand} · {domain} · scan from {new Date(scan.createdAt).toLocaleString()}
+          {brand} · {domain} · scan from {formatFirestoreDate(scan.createdAt)}
         </div>
         <SeoExportButtons scan={scan} />
       </div>

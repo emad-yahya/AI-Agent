@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type SeoSiteScan } from '../api/client';
 import { History, Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { formatFirestoreDate } from '../lib/firestoreDate';
 
 interface Props {
   siteId: string;
@@ -66,7 +67,7 @@ export function SeoSiteHistory({ siteId, refreshKey, onSelectScan, activeScanId 
       <div className="divide-y divide-gray-100">
         {scans.map((scan) => {
           const isActive = scan.id === activeScanId;
-          const date = new Date(scan.createdAt).toLocaleString();
+          const date = formatFirestoreDate(scan.createdAt);
           const ranked = scan.rankedCount ?? 0;
           const total = scan.totalKeywords ?? scan.keywords?.length ?? 0;
           const avg = scan.avgPosition;

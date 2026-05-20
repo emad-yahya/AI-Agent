@@ -3,6 +3,7 @@ import { api, type ScanHistoryItem, type ScanResponse } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { ResultTable } from './ResultsTable';
 import { History, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { formatFirestoreDate } from '../lib/firestoreDate';
 
 interface Props {
   brand: string;
@@ -87,7 +88,7 @@ export function ScanHistory({ brand }: Props) {
                   </span>
                 )}
                 <span className="text-gray-500 text-xs">
-                  {new Date(item.createdAt).toLocaleString()}
+                  {formatFirestoreDate(item.createdAt)}
                 </span>
               </div>
               {item.status === 'done' && (
