@@ -243,6 +243,19 @@ export interface GeoActionEvidence {
   values?: Record<string, string | number | boolean>;
 }
 
+export interface GeoActionPlaybook {
+  why?: string;
+  codeBlocks?: Array<{
+    label: string;
+    language: 'html' | 'json' | 'text' | 'bash' | 'markdown' | 'xml';
+    content: string;
+  }>;
+  verifySteps?: string[];
+  timeline?: string;
+  pitfalls?: string[];
+  resources?: Array<{ label: string; url: string }>;
+}
+
 export interface GeoAction {
   id: string;
   category: GeoActionCategory;
@@ -254,6 +267,7 @@ export interface GeoAction {
   expectedImpact: string;
   evidence: GeoActionEvidence;
   score: number;
+  playbook?: GeoActionPlaybook;
 }
 
 export interface GeoActionsReport {

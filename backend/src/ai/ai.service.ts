@@ -48,6 +48,8 @@ export class AIService {
   private readonly claude: Anthropic;
   private readonly openrouter: OpenAI;
   private readonly openai: OpenAI | null;
+  private readonly geminiPool: GoogleGenerativeAI[];
+  private geminiCursor = 0;
   private readonly gemini: GoogleGenerativeAI | null;
 
   private readonly provider: string;
@@ -76,7 +78,26 @@ export class AIService {
     this.openai = openaiKey ? new OpenAI({ apiKey: openaiKey }) : null;
 
     const geminiKey = this.config.get<string>('GOOGLE_GEMINI_API_KEY');
-    this.gemini = geminiKey ? new GoogleGenerativeAI(geminiKey) : null;
+    const geminiKeysCsv = this.config.get<string>('GOOGLE_GEMINI_API_KEYS') ?? '';
+    const numberedKeys: string[] = [];
+    for (let i = 2; i <= 10; i++) {
+      const k = this.config.get<string>(`GOOGLE_GEMINI_API_KEY_${i}`);
+      if (k) numberedKeys.push(k);
+    }
+    const pool = [
+      ...(geminiKey ? [geminiKey] : []),
+      ...geminiKeysCsv
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      ...numberedKeys,
+    ];
+    const dedupedPool = [...new Set(pool)];
+    this.geminiPool = dedupedPool.map((k) => new GoogleGenerativeAI(k));
+    this.gemini = this.geminiPool[0] ?? null;
+    if (this.geminiPool.length > 1) {
+      this.logger.log(`Gemini key pool initialised with ${this.geminiPool.length} keys`);
+    }
 
     this.provider = this.config.get<string>('AI_PROVIDER', 'openrouter');
     this.anthropicModel = this.config.get<string>(
@@ -173,7 +194,7 @@ export class AIService {
     useSearch = false,
     attempt = 0,
   ): Promise<EngineResponse> {
-    if (!this.gemini) {
+    if (this.geminiPool.length === 0) {
       this.logger.warn(
         'GOOGLE_GEMINI_API_KEY not set — falling back to OpenRouter',
       );
@@ -183,7 +204,9 @@ export class AIService {
     const tools = useSearch
       ? ([{ googleSearch: {} }] as unknown as Tool[])
       : undefined;
-    const model = this.gemini.getGenerativeModel({
+    // Rotate-on-429 — try each key in pool before backing off.
+    const client = this.geminiPool[this.geminiCursor % this.geminiPool.length];
+    const model = client.getGenerativeModel({
       model: 'gemini-2.5-flash',
       systemInstruction: systemPrompt,
       generationConfig: { temperature: 0 },
@@ -195,9 +218,6 @@ export class AIService {
       const rawCitations = useSearch
         ? this.extractGeminiCitations(result.response)
         : [];
-      // Vertex AI grounding URIs are proxy redirects. Unwrap to the actual
-      // source URL so the user sees real domains (nytimes.com, zillow.com)
-      // instead of identical vertexaisearch.cloud.google.com placeholders.
       const citations = useSearch
         ? await this.unwrapVertexUris(rawCitations)
         : rawCitations;
@@ -205,19 +225,30 @@ export class AIService {
     } catch (err) {
       const msg = (err as Error).message ?? '';
       const is429 = msg.includes('429') || msg.includes('Too Many Requests');
-      if (is429 && attempt < 2) {
-        const retryMatch = msg.match(/retry in ([\d.]+)s/i);
-        const waitMs = retryMatch
-          ? Math.ceil(parseFloat(retryMatch[1]) * 1000) + 500
-          : 15000;
-        this.logger.warn(`Gemini 429 — retry ${attempt + 1}/2 in ${waitMs}ms`);
-        await new Promise((r) => setTimeout(r, waitMs));
-        return this.callGemini(
-          systemPrompt,
-          userMessage,
-          useSearch,
-          attempt + 1,
-        );
+      if (is429) {
+        const maxKeyRotations = this.geminiPool.length;
+        const maxBackoff = 2;
+        const totalBudget = maxKeyRotations + maxBackoff;
+        if (attempt < totalBudget) {
+          this.geminiCursor = (this.geminiCursor + 1) % this.geminiPool.length;
+          // Within key-pool rotations, no sleep (different key = fresh quota).
+          if (attempt < maxKeyRotations - 1) {
+            this.logger.warn(
+              `Gemini 429 — rotating to key ${(this.geminiCursor + 1)}/${this.geminiPool.length}`,
+            );
+            return this.callGemini(systemPrompt, userMessage, useSearch, attempt + 1);
+          }
+          // After exhausting key pool, fall back to wait-then-retry.
+          const retryMatch = msg.match(/retry in ([\d.]+)s/i);
+          const waitMs = retryMatch
+            ? Math.ceil(parseFloat(retryMatch[1]) * 1000) + 500
+            : 15000;
+          this.logger.warn(
+            `Gemini 429 across all ${this.geminiPool.length} keys — waiting ${waitMs}ms (backoff ${attempt - maxKeyRotations + 1}/${maxBackoff})`,
+          );
+          await new Promise((r) => setTimeout(r, waitMs));
+          return this.callGemini(systemPrompt, userMessage, useSearch, attempt + 1);
+        }
       }
       throw err;
     }
@@ -350,14 +381,32 @@ export class AIService {
     const system =
       'You are a helpful assistant. When asked for JSON, return only valid JSON with no explanation or markdown fences.';
 
-    if (this.gemini) {
-      const model = this.gemini.getGenerativeModel({
+    if (this.geminiPool.length > 0) {
+      const client = this.geminiPool[this.geminiCursor % this.geminiPool.length];
+      const model = client.getGenerativeModel({
         model: 'gemini-2.5-flash-lite',
         systemInstruction: system,
         generationConfig: { temperature: 0 },
       });
-      const result = await model.generateContent(prompt);
-      return result.response.text();
+      try {
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+      } catch (err) {
+        const msg = (err as Error).message ?? '';
+        if ((msg.includes('429') || msg.includes('Too Many Requests')) && this.geminiPool.length > 1) {
+          this.geminiCursor = (this.geminiCursor + 1) % this.geminiPool.length;
+          const retryClient = this.geminiPool[this.geminiCursor];
+          const retryModel = retryClient.getGenerativeModel({
+            model: 'gemini-2.5-flash-lite',
+            systemInstruction: system,
+            generationConfig: { temperature: 0 },
+          });
+          this.logger.warn(`generateText: Gemini 429 — rotated to key ${this.geminiCursor + 1}/${this.geminiPool.length}`);
+          const result = await retryModel.generateContent(prompt);
+          return result.response.text();
+        }
+        throw err;
+      }
     }
 
     if (this.provider === 'openrouter') {
@@ -542,6 +591,81 @@ Example for a Dubai real estate broker brand:
    * instead of actual competitors. Gemini grounding reads the article CONTENT
    * and names real businesses.
    */
+  /**
+   * Classifies a brand into a specific narrow category using LLM analysis of
+   * site signals (title, description, H1s, keywords). Regex-based detection
+   * misfires (e.g. real-estate broker → "hospitality" when keywords like
+   * "stay/resort" outweigh real-estate cues). LLM reads holistic context.
+   *
+   * Returns null on failure so caller can fall back to regex.
+   */
+  async classifyCategoryViaLLM(input: {
+    brand: string;
+    domain: string;
+    title?: string;
+    description?: string;
+    h1?: string;
+    keywords?: string[];
+    country?: string;
+  }): Promise<{ category: string; audience: string; geo: string; model: string } | null> {
+    if (!this.gemini) return null;
+    const keywordsLine = (input.keywords ?? []).slice(0, 12).join(', ');
+    const country = input.country ? this.countryFullName(input.country) : 'unknown country';
+
+    const system =
+      'You classify businesses into specific market categories for an AI visibility tracker. Return ONLY valid JSON, no markdown, no commentary.';
+    const user = `Classify this business into a SPECIFIC, NARROW market category that an end-customer would type into ChatGPT/Gemini when shopping.
+
+Brand: "${input.brand}"
+Domain: ${input.domain}
+Country: ${country}
+Page title: ${input.title || '(none)'}
+Meta description: ${input.description || '(none)'}
+H1 headings: ${input.h1 || '(none)'}
+Keywords: ${keywordsLine || '(none)'}
+
+Return JSON:
+{
+  "category": "specific narrow category (2-6 words, lowercase). Include geography + segment when relevant. e.g. 'dubai real estate brokerage', 'b2b crm software', 'london vegan restaurant'. NEVER include the brand name. NEVER use the word 'industry'.",
+  "audience": "who buys this (1 short phrase, e.g. 'property buyers and renters in Dubai', 'small business sales teams')",
+  "geo": "geographic focus (city/country/global, 1-3 words)",
+  "model": "business model — one of: b2b | b2c | marketplace | local-service | saas | ecommerce | media"
+}`;
+
+    try {
+      const { text } = await this.callGemini(system, user, false);
+      const cleaned = text
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/```$/i, '')
+        .trim();
+      const start = cleaned.indexOf('{');
+      const end = cleaned.lastIndexOf('}');
+      if (start === -1 || end === -1) return null;
+      const parsed = JSON.parse(cleaned.slice(start, end + 1)) as {
+        category?: unknown;
+        audience?: unknown;
+        geo?: unknown;
+        model?: unknown;
+      };
+      const category = typeof parsed.category === 'string' ? parsed.category.trim().toLowerCase() : '';
+      if (!category || category.length < 2 || category.length > 80) return null;
+      // Reject if brand leaked in
+      const brandLower = input.brand.trim().toLowerCase();
+      if (brandLower && category.includes(brandLower)) return null;
+      this.logger.log(`LLM classified "${input.brand}" → "${category}"`);
+      return {
+        category,
+        audience: typeof parsed.audience === 'string' ? parsed.audience.trim() : '',
+        geo: typeof parsed.geo === 'string' ? parsed.geo.trim() : '',
+        model: typeof parsed.model === 'string' ? parsed.model.trim().toLowerCase() : 'b2c',
+      };
+    } catch (err) {
+      this.logger.warn(`LLM categorization failed for "${input.brand}": ${(err as Error).message}`);
+      return null;
+    }
+  }
+
   async findCompetitorBrandsViaGemini(
     brand: string,
     category: string | null,

@@ -20,6 +20,8 @@ import { ListicleGapPanel } from './components/ListicleGapPanel';
 import { CompetitorAuditPanel } from './components/CompetitorAuditPanel';
 import { BrandPresencePanel } from './components/BrandPresencePanel';
 import { GeoActionsPanel } from './components/GeoActionsPanel';
+import { ProgressPanel } from './components/ProgressPanel';
+import { BenchmarkPanel } from './components/BenchmarkPanel';
 import { OnPageSeoPanel } from './components/OnPageSeoPanel';
 import { ContentGapPanel } from './components/ContentGapPanel';
 import { OnboardingWizard } from './components/OnboardingWizard';
@@ -35,15 +37,17 @@ import { CompetitorPlaybook } from './components/CompetitorPlaybook';
 import { SectionIntro } from './components/Hint';
 import { api, type ScanResponse, type BrandComparisonResult } from './api/client';
 import { useAsync } from './hooks/useAsync';
-import { Eye, ScanSearch, LayoutDashboard, GitCompareArrows, Globe, Loader2, Sparkles, GitCompare, Code, FileText, Bot, Rocket } from 'lucide-react';
+import { Eye, ScanSearch, LayoutDashboard, GitCompareArrows, Globe, Loader2, Sparkles, GitCompare, Code, FileText, Bot, Rocket, Settings } from 'lucide-react';
+import { SystemHealthPanel } from './components/SystemHealthPanel';
 
-type Tab = 'scan' | 'dashboard' | 'compare' | 'seo';
+type Tab = 'scan' | 'dashboard' | 'compare' | 'seo' | 'settings';
 
 const TABS: ReadonlyArray<{ key: Tab; label: string; Icon: typeof ScanSearch; gradient: string }> = [
   { key: 'scan',      label: 'New scan',  Icon: ScanSearch,      gradient: 'from-indigo-500 to-fuchsia-500' },
   { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, gradient: 'from-cyan-500 to-blue-600' },
   { key: 'compare',   label: 'Compare',   Icon: GitCompareArrows, gradient: 'from-violet-500 to-pink-500' },
   { key: 'seo',       label: 'SEO',       Icon: Globe,           gradient: 'from-emerald-500 to-teal-500' },
+  { key: 'settings',  label: 'Settings',  Icon: Settings,        gradient: 'from-slate-500 to-slate-700' },
 ];
 
 export default function App() {
@@ -218,6 +222,8 @@ export default function App() {
                       brand={scanMeta.brand}
                       onActionsLoaded={(c) => setGeoActionsCount(c)}
                     />
+                    <ProgressPanel brand={scanMeta.brand} />
+                    <BenchmarkPanel brand={scanMeta.brand} />
                     <OnPageSeoPanel brand={scanMeta.brand} />
                     <ContentGapPanel brand={scanMeta.brand} results={scanResult.results} />
                     <GeneratorToolbar onOpen={(k) => setGeneratorOpen(k)} brand={scanMeta.brand} />
@@ -324,6 +330,8 @@ export default function App() {
                 )}
               </>
             )}
+
+            {tab === 'settings' && <SystemHealthPanel />}
           </motion.div>
         </AnimatePresence>
 
@@ -363,6 +371,7 @@ function tabTitle(t: Tab) {
     case 'dashboard': return 'Dashboard';
     case 'compare':   return 'Compare brands';
     case 'seo':       return 'SEO tracker';
+    case 'settings':  return 'Settings & integrations';
   }
 }
 function tabSubtitle(t: Tab) {
@@ -371,6 +380,7 @@ function tabSubtitle(t: Tab) {
     case 'dashboard': return 'Your brand history, trends, and scheduled scans.';
     case 'compare':   return 'Pit 2–4 brands head-to-head with Share of Voice.';
     case 'seo':       return 'Crawl your site, find keywords, track Google rankings.';
+    case 'settings':  return 'Verify external API keys, view system health.';
   }
 }
 

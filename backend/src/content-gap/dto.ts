@@ -33,3 +33,10 @@ export class PaaDto {
   seeds!: string[];
   @IsOptional() @IsString() @Length(2, 5) country?: string;
 }
+
+export class ContentBriefDto {
+  @IsString() @MinLength(3) @MaxLength(200) query!: string;
+  @IsString() @MinLength(2) @MaxLength(200) brand!: string;
+  @IsOptional() @IsString() @MaxLength(200) category?: string;
+  @IsOptional() @IsString() @Length(2, 5) country?: string;
+}

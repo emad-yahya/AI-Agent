@@ -188,9 +188,34 @@ export function OnboardingWizard({ open, onClose, onComplete }: Props) {
                   type="text"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  placeholder="e.g. real estate, SaaS, dentist"
+                  placeholder="e.g. dubai real estate brokerage, b2b crm software"
                   className="mt-1 w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                {analysis.categorySource && (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {analysis.categorySource === 'llm' ? (
+                      <>
+                        <span className="inline-block px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[9px] font-bold mr-1">LLM</span>
+                        Classified via Gemini.
+                      </>
+                    ) : analysis.categorySource === 'regex' ? (
+                      <>
+                        <span className="inline-block px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-bold mr-1">REGEX</span>
+                        Pattern-matched (LLM unavailable). Edit if wrong.
+                      </>
+                    ) : (
+                      <span className="text-rose-600">
+                        Auto-detection failed — please type your category manually.
+                      </span>
+                    )}
+                    {analysis.categoryAudience && (
+                      <span className="ml-2">Audience: <b>{analysis.categoryAudience}</b></span>
+                    )}
+                    {analysis.categoryGeo && (
+                      <span className="ml-2">Geo: <b>{analysis.categoryGeo}</b></span>
+                    )}
+                  </p>
+                )}
               </label>
 
               <div>

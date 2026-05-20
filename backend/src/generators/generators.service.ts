@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { AIService } from 'src/ai/ai.service';
 import {
   GenerateArticleSchemaDto,
   GenerateFaqSchemaDto,
@@ -25,6 +26,86 @@ const AI_BOTS = [
 
 @Injectable()
 export class GeneratorsService {
+  private readonly logger = new Logger(GeneratorsService.name);
+
+  constructor(private ai: AIService) {}
+
+  /**
+   * Generates FAQ schema with answers AI-generated from a list of PAA questions
+   * (typically taken straight from ContentGap PAA output). Lets users go from
+   * "I see the questions Google surfaces" to "I have schema ready to paste" in
+   * one click.
+   */
+  async generateFaqFromPaa(input: {
+    questions: string[];
+    brand: string;
+    category?: string;
+  }) {
+    const trimmed = input.questions
+      .map((q) => q.trim())
+      .filter((q) => q.length > 5 && q.length < 250)
+      .slice(0, 10);
+    if (trimmed.length === 0) {
+      return this.generateFaqSchema({
+        items: [{ question: 'Sample question?', answer: 'Sample answer.' }],
+      });
+    }
+    const prompt = `You are writing concise, factual FAQ answers for ${input.brand}${
+      input.category ? ` (${input.category})` : ''
+    }.
+
+For each question below, write an answer that is:
+- 40-80 words
+- Factual and direct (no marketing fluff)
+- First sentence answers the question; remaining sentences add nuance or context
+- Written so it can be quoted verbatim by AI engines (ChatGPT / Gemini / Perplexity)
+
+Return ONLY a JSON array of objects, no markdown, no commentary.
+
+Questions:
+${trimmed.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+Format:
+[
+  {"question": "<question 1 verbatim>", "answer": "<40-80 word answer>"},
+  {"question": "<question 2 verbatim>", "answer": "<40-80 word answer>"}
+]`;
+
+    let items: Array<{ question: string; answer: string }> = trimmed.map((q) => ({
+      question: q,
+      answer: `<TODO: write a 40-80 word answer to "${q}">`,
+    }));
+    try {
+      const raw = await this.ai.generateText(prompt);
+      const cleaned = raw
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/```$/i, '')
+        .trim();
+      const start = cleaned.indexOf('[');
+      const end = cleaned.lastIndexOf(']');
+      if (start !== -1 && end !== -1) {
+        const parsed = JSON.parse(cleaned.slice(start, end + 1)) as Array<{
+          question?: string;
+          answer?: string;
+        }>;
+        const valid = parsed
+          .filter(
+            (p) =>
+              p &&
+              typeof p.question === 'string' &&
+              typeof p.answer === 'string' &&
+              p.answer.length > 20,
+          )
+          .map((p) => ({ question: p.question!.trim(), answer: p.answer!.trim() }));
+        if (valid.length > 0) items = valid;
+      }
+    } catch (err) {
+      this.logger.warn(`FAQ-from-PAA generation failed: ${(err as Error).message}`);
+    }
+    return this.generateFaqSchema({ items });
+  }
+
   generateFaqSchema(dto: GenerateFaqSchemaDto) {
     const schema = {
       '@context': 'https://schema.org',

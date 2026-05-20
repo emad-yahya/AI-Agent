@@ -113,6 +113,10 @@ export class FirebaseService implements OnModuleInit {
     return this.brands().doc(brandId).collection('config').doc('alerts');
   }
 
+  actionCompletions(brandId: string) {
+    return this.brands().doc(brandId).collection('actionCompletions');
+  }
+
   schedulerConfig() {
     return this.db.collection('config').doc('scheduler');
   }

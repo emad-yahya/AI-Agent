@@ -333,9 +333,23 @@ export type GeoActionCategory =
   | 'citation'
   | 'listicle'
   | 'engine-weakness'
+  | 'presence'
   | 'content';
 
 export type GeoActionPriority = 'critical' | 'high' | 'medium' | 'low';
+
+export interface GeoActionPlaybook {
+  why?: string;
+  codeBlocks?: Array<{
+    label: string;
+    language: 'html' | 'json' | 'text' | 'bash' | 'markdown' | 'xml';
+    content: string;
+  }>;
+  verifySteps?: string[];
+  timeline?: string;
+  pitfalls?: string[];
+  resources?: Array<{ label: string; url: string }>;
+}
 
 export interface GeoAction {
   id: string;
@@ -347,7 +361,7 @@ export interface GeoAction {
   effort: '15m' | '1h' | 'half-day' | '1d' | 'ongoing';
   expectedImpact: string;
   evidence: {
-    type: 'ai-scan' | 'citation' | 'listicle-gap' | 'competitor-audit';
+    type: 'ai-scan' | 'citation' | 'listicle-gap' | 'competitor-audit' | 'brand-presence';
     scanId?: string;
     scanType?: string;
     detail?: string;
@@ -355,6 +369,7 @@ export interface GeoAction {
     values?: Record<string, string | number | boolean>;
   };
   score: number;
+  playbook?: GeoActionPlaybook;
 }
 
 export interface GeoActionsReport {
@@ -365,9 +380,11 @@ export interface GeoActionsReport {
     hasAiScan: boolean;
     hasListicleGap: boolean;
     hasCompetitorAudit: boolean;
+    hasBrandPresence?: boolean;
     aiScanId?: string;
     listicleGapScanId?: string;
     competitorAuditScanId?: string;
+    brandPresenceReportId?: string;
   };
   summary: {
     total: number;
@@ -681,6 +698,10 @@ export interface OnboardingAnalysis {
   domain: string;
   brand: string;
   category: string | null;
+  categoryAudience?: string | null;
+  categoryGeo?: string | null;
+  categoryModel?: string | null;
+  categorySource?: 'llm' | 'regex' | 'none';
   country: string;
   keywords: string[];
   suggestedCompetitors: string[];
@@ -959,6 +980,18 @@ export const api = {
     return res.data;
   },
 
+  generateFaqFromPaa: async (input: {
+    questions: string[];
+    brand: string;
+    category?: string;
+  }) => {
+    const res = await http.post<GeneratorResult>(
+      '/generators/schema/faq-from-paa',
+      input,
+    );
+    return res.data;
+  },
+
   generateOrgSchema: async (payload: OrgSchemaPayload) => {
     const res = await http.post<GeneratorResult>(
       '/generators/schema/organization',
@@ -1104,4 +1137,142 @@ export const api = {
     });
     return res.data;
   },
+
+  getSystemHealth: async () => {
+    const res = await http.get<SystemHealthResponse>('/system/health/integrations');
+    return res.data;
+  },
+
+  generateContentBrief: async (input: {
+    query: string;
+    brand: string;
+    category?: string;
+    country?: string;
+  }) => {
+    const res = await http.post<ContentBrief>('/content-gap/brief', input);
+    return res.data;
+  },
+
+  listActionCompletions: async (brand: string) => {
+    const res = await http.get<Record<string, ActionCompletionState>>(
+      '/geo-actions/completions',
+      { params: { brand } },
+    );
+    return res.data;
+  },
+
+  setActionCompletion: async (
+    brand: string,
+    actionId: string,
+    completed: boolean,
+    notes?: string,
+  ) => {
+    const res = await http.post<{ ok: true; actionId: string; completed: boolean }>(
+      '/geo-actions/completion',
+      { brand, actionId, completed, notes },
+    );
+    return res.data;
+  },
+
+  getBrandProgress: async (brand: string) => {
+    const res = await http.get<BrandProgress>('/geo-actions/progress', {
+      params: { brand },
+    });
+    return res.data;
+  },
+
+  getBrandBenchmark: async (brand: string) => {
+    const res = await http.get<BrandBenchmark>('/geo-actions/benchmark', {
+      params: { brand },
+    });
+    return res.data;
+  },
+
+  getBrandDigest: async (brand: string) => {
+    const res = await http.get<{ brand: string; generatedAt: string; markdown: string }>(
+      '/geo-actions/digest',
+      { params: { brand } },
+    );
+    return res.data;
+  },
 };
+
+export interface BrandBenchmark {
+  brand: string;
+  metrics: Array<{
+    key: string;
+    label: string;
+    unit: string;
+    higherIsBetter: boolean;
+    yours: number | null;
+    topCompetitor: { name: string; value: number } | null;
+    median: number | null;
+    gapVsMedian: number | null;
+    verdict: 'leader' | 'parity' | 'behind' | 'critical' | 'unknown';
+  }>;
+}
+
+export interface ActionCompletionState {
+  completed: boolean;
+  updatedAt: string;
+  notes?: string;
+}
+
+export interface BrandProgress {
+  brand: string;
+  snapshots: Array<{
+    date: string;
+    realMentionRate: number | null;
+    echoMentionRate: number | null;
+    mentionRate: number | null;
+    brandPresenceScore: number | null;
+    auditScorePct: number | null;
+    onPageAvgScore: number | null;
+  }>;
+  deltas: {
+    realMentionRate: number | null;
+    brandPresenceScore: number | null;
+    auditScorePct: number | null;
+    onPageAvgScore: number | null;
+  };
+  actionsTotal: number;
+  actionsCompleted: number;
+}
+
+export interface ContentBrief {
+  query: string;
+  intent: string;
+  intentReason: string;
+  targetWordCount: number;
+  title: string;
+  metaDescription: string;
+  h2Outline: Array<{ heading: string; bullets: string[] }>;
+  entitiesToMention: string[];
+  paaQuestions: string[];
+  relatedSearches: string[];
+  topCompetitors: Array<{ title: string; url: string; snippet: string }>;
+  schemaSuggestions: string[];
+  internalLinkSuggestions: string[];
+  callToAction: string;
+}
+
+export type IntegrationStatus = 'ok' | 'missing' | 'invalid' | 'rate_limited' | 'unknown';
+
+export interface IntegrationCheck {
+  key: string;
+  name: string;
+  status: IntegrationStatus;
+  required: boolean;
+  envVar: string;
+  description: string;
+  setupUrl: string;
+  setupSteps: string[];
+  message?: string;
+  cost?: string;
+}
+
+export interface SystemHealthResponse {
+  checks: IntegrationCheck[];
+  allOk: boolean;
+  coreOk: boolean;
+}

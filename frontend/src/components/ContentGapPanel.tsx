@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
+  Copy,
   ExternalLink,
+  FileText,
   Loader2,
   Search,
   Target,
   TrendingUp,
+  X,
 } from 'lucide-react';
-import { api, type ContentGapReport, type ScanResult } from '../api/client';
+import { api, type ContentBrief, type ContentGapReport, type ScanResult } from '../api/client';
 import { SectionIntro } from './Hint';
 
 interface Props {
@@ -27,7 +30,59 @@ export function ContentGapPanel({ brand, domain, results }: Props) {
   const [report, setReport] = useState<ContentGapReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [briefQuery, setBriefQuery] = useState<string | null>(null);
+  const [brief, setBrief] = useState<ContentBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
+  const [faqSchemaHtml, setFaqSchemaHtml] = useState<string | null>(null);
+  const [faqSchemaLoading, setFaqSchemaLoading] = useState(false);
+  const [faqSchemaCopied, setFaqSchemaCopied] = useState(false);
   const pollRef = useRef<number | null>(null);
+
+  const openFaqSchema = async (questions: string[]) => {
+    setFaqSchemaHtml('');
+    setFaqSchemaLoading(true);
+    setFaqSchemaCopied(false);
+    try {
+      const res = await api.generateFaqFromPaa({ questions, brand });
+      setFaqSchemaHtml(res.htmlSnippet);
+    } catch (err) {
+      setFaqSchemaHtml(`<!-- Error: ${(err as Error).message} -->`);
+    } finally {
+      setFaqSchemaLoading(false);
+    }
+  };
+  const copyFaqSchema = async () => {
+    if (!faqSchemaHtml) return;
+    try {
+      await navigator.clipboard.writeText(faqSchemaHtml);
+      setFaqSchemaCopied(true);
+      setTimeout(() => setFaqSchemaCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  const openBrief = async (query: string) => {
+    setBriefQuery(query);
+    setBrief(null);
+    setBriefError(null);
+    setBriefLoading(true);
+    try {
+      const b = await api.generateContentBrief({ query, brand, country });
+      setBrief(b);
+    } catch (err) {
+      setBriefError((err as Error).message);
+    } finally {
+      setBriefLoading(false);
+    }
+  };
+  const closeBrief = () => {
+    setBriefQuery(null);
+    setBrief(null);
+    setBriefError(null);
+    setBriefLoading(false);
+  };
 
   // Pre-fill queries from AI scan results' prompts
   useEffect(() => {
@@ -159,6 +214,56 @@ export function ContentGapPanel({ brand, domain, results }: Props) {
         {error && <p className="text-red-600 text-sm">{error}</p>}
       </div>
 
+      {briefQuery && (
+        <ContentBriefModal
+          query={briefQuery}
+          brief={brief}
+          loading={briefLoading}
+          error={briefError}
+          onClose={closeBrief}
+        />
+      )}
+
+      {faqSchemaHtml !== null && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between gap-2">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                <FileText size={14} /> FAQ Schema (paste in &lt;head&gt;)
+              </h3>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={copyFaqSchema}
+                  disabled={faqSchemaLoading}
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {faqSchemaCopied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                  {faqSchemaCopied ? 'Copied' : 'Copy'}
+                </button>
+                <button
+                  onClick={() => setFaqSchemaHtml(null)}
+                  className="p-1.5 rounded hover:bg-slate-100"
+                >
+                  <X size={16} className="text-slate-500" />
+                </button>
+              </div>
+            </div>
+            <div className="overflow-y-auto px-5 py-4">
+              {faqSchemaLoading ? (
+                <div className="text-center py-10">
+                  <Loader2 className="animate-spin mx-auto mb-2 text-amber-600" />
+                  <p className="text-slate-600 text-xs">Generating answers + schema…</p>
+                </div>
+              ) : (
+                <pre className="font-mono text-[11px] whitespace-pre-wrap text-slate-800 leading-relaxed bg-slate-50 p-3 rounded">
+                  {faqSchemaHtml}
+                </pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {report && report.status === 'done' && report.items && (
         <div className="mt-5 space-y-4">
           {report.summary && (
@@ -179,6 +284,12 @@ export function ContentGapPanel({ brand, domain, results }: Props) {
                       <div className="flex items-center gap-2">
                         <Search size={14} className="text-slate-400" />
                         <p className="font-medium text-sm text-slate-800">{it.query}</p>
+                        <button
+                          onClick={() => openBrief(it.query)}
+                          className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-violet-100 text-violet-700 hover:bg-violet-200"
+                        >
+                          <FileText size={11} /> Generate brief
+                        </button>
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs">
                         {it.brandHasPage ? (
@@ -218,6 +329,12 @@ export function ContentGapPanel({ brand, domain, results }: Props) {
                       <ul className="mt-1 pl-4 list-disc text-slate-600 space-y-0.5">
                         {it.paa.map((q, qi) => <li key={qi}>{q}</li>)}
                       </ul>
+                      <button
+                        onClick={() => openFaqSchema(it.paa!)}
+                        className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded bg-amber-100 text-amber-800 hover:bg-amber-200"
+                      >
+                        <FileText size={11} /> Generate FAQ schema from these
+                      </button>
                     </details>
                   )}
                 </div>
@@ -227,6 +344,244 @@ export function ContentGapPanel({ brand, domain, results }: Props) {
       )}
     </section>
   );
+}
+
+function ContentBriefModal({
+  query,
+  brief,
+  loading,
+  error,
+  onClose,
+}: {
+  query: string;
+  brief: ContentBrief | null;
+  loading: boolean;
+  error: string | null;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const copyAll = async () => {
+    if (!brief) return;
+    const md = briefToMarkdown(brief);
+    try {
+      await navigator.clipboard.writeText(md);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-violet-700">
+              Content Brief
+            </p>
+            <h3 className="font-bold text-slate-900 text-sm truncate">{query}</h3>
+          </div>
+          <div className="flex items-center gap-1">
+            {brief && (
+              <button
+                onClick={copyAll}
+                className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-md bg-violet-600 text-white hover:bg-violet-700"
+              >
+                {copied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                {copied ? 'Copied' : 'Copy as Markdown'}
+              </button>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded hover:bg-slate-100">
+              <X size={16} className="text-slate-500" />
+            </button>
+          </div>
+        </div>
+        <div className="overflow-y-auto px-5 py-4 space-y-4 text-sm">
+          {loading && (
+            <div className="text-center py-10">
+              <Loader2 className="animate-spin mx-auto mb-2 text-violet-600" />
+              <p className="text-slate-600 text-xs">
+                Fetching SERP + generating brief…
+              </p>
+            </div>
+          )}
+          {error && (
+            <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              {error}
+            </div>
+          )}
+          {brief && (
+            <>
+              <Field label="Intent">
+                <span className="inline-block px-2 py-0.5 rounded text-[11px] uppercase font-bold bg-blue-100 text-blue-800 mr-2">
+                  {brief.intent}
+                </span>
+                <span className="text-xs text-slate-600">{brief.intentReason}</span>
+              </Field>
+              <Field label="Target word count">
+                <p className="text-lg font-bold text-violet-700">
+                  {brief.targetWordCount.toLocaleString()} words
+                </p>
+              </Field>
+              <Field label="Recommended <title>">
+                <p className="font-mono text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-200">
+                  {brief.title}
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {brief.title.length} chars (target 55-60)
+                </p>
+              </Field>
+              <Field label="Meta description">
+                <p className="font-mono text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-200">
+                  {brief.metaDescription}
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {brief.metaDescription.length} chars (target 145-160)
+                </p>
+              </Field>
+              {brief.h2Outline.length > 0 && (
+                <Field label="Article outline (H2 → bullets)">
+                  <ol className="space-y-2 list-decimal list-inside">
+                    {brief.h2Outline.map((h, i) => (
+                      <li key={i} className="text-xs">
+                        <span className="font-semibold text-slate-800">{h.heading}</span>
+                        {h.bullets.length > 0 && (
+                          <ul className="ml-5 mt-1 list-disc text-slate-600 space-y-0.5">
+                            {h.bullets.map((b, bi) => (
+                              <li key={bi}>{b}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </Field>
+              )}
+              {brief.entitiesToMention.length > 0 && (
+                <Field label="Entities to mention (boosts AI topical authority)">
+                  <div className="flex flex-wrap gap-1.5">
+                    {brief.entitiesToMention.map((e, i) => (
+                      <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {e}
+                      </span>
+                    ))}
+                  </div>
+                </Field>
+              )}
+              {brief.paaQuestions.length > 0 && (
+                <Field label="People Also Ask (answer each in an H3 or FAQ)">
+                  <ul className="space-y-0.5 list-disc list-inside text-xs text-slate-700">
+                    {brief.paaQuestions.map((q, i) => (
+                      <li key={i}>{q}</li>
+                    ))}
+                  </ul>
+                </Field>
+              )}
+              {brief.relatedSearches.length > 0 && (
+                <Field label="Related searches (semantic neighbours)">
+                  <div className="flex flex-wrap gap-1.5">
+                    {brief.relatedSearches.map((r, i) => (
+                      <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                        {r}
+                      </span>
+                    ))}
+                  </div>
+                </Field>
+              )}
+              {brief.topCompetitors.length > 0 && (
+                <Field label="Top SERP results to outrank">
+                  <ol className="space-y-1 list-decimal list-inside text-xs">
+                    {brief.topCompetitors.map((c, i) => (
+                      <li key={i}>
+                        <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline">
+                          {c.title}
+                        </a>
+                        <p className="ml-5 text-slate-500 text-[11px] leading-snug">
+                          {c.snippet}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </Field>
+              )}
+              {brief.schemaSuggestions.length > 0 && (
+                <Field label="Schema markup to add">
+                  <div className="flex flex-wrap gap-1.5">
+                    {brief.schemaSuggestions.map((s, i) => (
+                      <span key={i} className="text-[11px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 font-mono">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </Field>
+              )}
+              {brief.internalLinkSuggestions.length > 0 && (
+                <Field label="Internal link suggestions">
+                  <ul className="space-y-0.5 list-disc list-inside text-xs text-slate-700">
+                    {brief.internalLinkSuggestions.map((l, i) => (
+                      <li key={i}>{l}</li>
+                    ))}
+                  </ul>
+                </Field>
+              )}
+              {brief.callToAction && (
+                <Field label="Suggested call-to-action">
+                  <p className="text-xs italic text-slate-700">"{brief.callToAction}"</p>
+                </Field>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function briefToMarkdown(b: ContentBrief): string {
+  return [
+    `# Content Brief — ${b.query}`,
+    '',
+    `**Intent:** ${b.intent} — ${b.intentReason}`,
+    `**Target word count:** ${b.targetWordCount}`,
+    `**Title:** ${b.title}`,
+    `**Meta description:** ${b.metaDescription}`,
+    '',
+    `## Outline`,
+    ...b.h2Outline.flatMap((h) => [
+      `### ${h.heading}`,
+      ...h.bullets.map((bb) => `- ${bb}`),
+      '',
+    ]),
+    `## Entities to mention`,
+    ...b.entitiesToMention.map((e) => `- ${e}`),
+    '',
+    `## People Also Ask`,
+    ...b.paaQuestions.map((q) => `- ${q}`),
+    '',
+    `## Related searches`,
+    ...b.relatedSearches.map((r) => `- ${r}`),
+    '',
+    `## Top SERP results to outrank`,
+    ...b.topCompetitors.map((c) => `- [${c.title}](${c.url}) — ${c.snippet}`),
+    '',
+    `## Schema markup`,
+    ...b.schemaSuggestions.map((s) => `- ${s}`),
+    '',
+    `## Internal links`,
+    ...b.internalLinkSuggestions.map((l) => `- ${l}`),
+    '',
+    `## Call to action`,
+    b.callToAction,
+  ].join('\n');
 }
 
 function Box({ label, value, color }: { label: string; value: string; color: 'blue' | 'green' | 'amber' | 'violet' }) {

@@ -57,37 +57,69 @@ export class OnboardingService {
 
     let brand = this.guessBrandFromDomain(domain);
     let category: string | null = null;
+    let categoryAudience: string | null = null;
+    let categoryGeo: string | null = null;
+    let categoryModel: string | null = null;
+    let categorySource: 'llm' | 'regex' | 'none' = 'none';
     let keywords: string[] = [];
     let crawlError: string | null = null;
+    let crawlTitle = '';
+    let crawlDesc = '';
+    let crawlH1 = '';
 
     try {
       const crawl = await this.crawler.crawl(`https://${domain}`);
-      const title = crawl.page.title || '';
-      const desc = crawl.page.description || '';
-      const h1Joined = crawl.page.h1.join(' ');
+      crawlTitle = crawl.page.title || '';
+      crawlDesc = crawl.page.description || '';
+      crawlH1 = crawl.page.h1.join(' ');
       keywords = crawl.keywords.slice(0, 12);
 
       // Detect anti-bot pages (captcha, cloudflare challenge, "verify human") — they
       // poison brand/category guesses if treated as real homepages.
       const blockedSignal = /captcha|verify (you are|that you)|cloudflare|access denied|forbidden|are you a robot/i;
       const looksBlocked =
-        blockedSignal.test(title) || blockedSignal.test(h1Joined);
+        blockedSignal.test(crawlTitle) || blockedSignal.test(crawlH1);
       if (looksBlocked) {
         crawlError = `Anti-bot / captcha page detected — using domain-only guess`;
       } else {
         // Brand guess from <title> (strip common suffixes like " | Best Real Estate")
-        if (title) {
-          const titleBrand = title.split(/[|\-–—]/)[0].trim();
+        if (crawlTitle) {
+          const titleBrand = crawlTitle.split(/[|\-–—]/)[0].trim();
           if (titleBrand && titleBrand.length >= 2 && titleBrand.length <= 80) {
             brand = titleBrand;
           }
         }
-        const corpus = `${title} ${desc} ${h1Joined} ${keywords.join(' ')}`;
-        category = this.guessCategory(corpus);
       }
     } catch (err) {
       crawlError = (err as Error).message;
       this.logger.warn(`Onboarding crawl failed for ${domain}: ${crawlError}`);
+    }
+
+    // Primary: LLM-based category classification (reads holistic site signals,
+    // returns a SPECIFIC narrow category — e.g. "dubai real estate brokerage").
+    // Fallback to regex if Gemini key missing or call fails.
+    if (!crawlError || crawlError.includes('Anti-bot') === false) {
+      const llmClass = await this.ai.classifyCategoryViaLLM({
+        brand,
+        domain,
+        title: crawlTitle,
+        description: crawlDesc,
+        h1: crawlH1,
+        keywords,
+        country,
+      });
+      if (llmClass) {
+        category = llmClass.category;
+        categoryAudience = llmClass.audience || null;
+        categoryGeo = llmClass.geo || null;
+        categoryModel = llmClass.model || null;
+        categorySource = 'llm';
+      }
+    }
+    if (!category) {
+      const corpus = `${crawlTitle} ${crawlDesc} ${crawlH1} ${keywords.join(' ')}`;
+      category = this.guessCategory(corpus);
+      if (category) categorySource = 'regex';
     }
 
     const suggestedCompetitors = await this.suggestCompetitors(
@@ -101,6 +133,10 @@ export class OnboardingService {
       domain,
       brand,
       category,
+      categoryAudience,
+      categoryGeo,
+      categoryModel,
+      categorySource,
       country,
       keywords,
       suggestedCompetitors,

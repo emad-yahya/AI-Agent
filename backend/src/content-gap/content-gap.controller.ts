@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ContentGapService } from './content-gap.service';
-import { CreateContentGapDto, PaaDto } from './dto';
+import { ContentBriefDto, CreateContentGapDto, PaaDto } from './dto';
 
 @Controller('content-gap')
 export class ContentGapController {
@@ -27,5 +27,10 @@ export class ContentGapController {
   @Post('paa')
   paa(@Body() dto: PaaDto) {
     return this.service.fetchPaa(dto);
+  }
+
+  @Post('brief')
+  brief(@Body() dto: ContentBriefDto) {
+    return this.service.generateBrief(dto);
   }
 }

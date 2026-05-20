@@ -6,7 +6,8 @@ import {
   PaaResult,
 } from 'src/common/types';
 import { SerperService } from 'src/seo/serper.service';
-import { CreateContentGapDto, PaaDto } from './dto';
+import { AIService } from 'src/ai/ai.service';
+import { ContentBriefDto, CreateContentGapDto, PaaDto } from './dto';
 
 const SERPER_DELAY_MS = parseInt(process.env.SERPER_DELAY_MS ?? '500', 10);
 const TOP_N = 10;
@@ -18,7 +19,162 @@ export class ContentGapService {
   constructor(
     private firebase: FirebaseService,
     private serper: SerperService,
+    private ai: AIService,
   ) {}
+
+  /**
+   * Generates a complete content brief for a target query. Combines real SERP
+   * data (top 10 + PAA + related searches) with LLM synthesis to produce an
+   * outline, target word count, entities to mention, and on-page SEO hints
+   * that the user can hand to a writer.
+   */
+  async generateBrief(dto: ContentBriefDto): Promise<{
+    query: string;
+    intent: string;
+    intentReason: string;
+    targetWordCount: number;
+    title: string;
+    metaDescription: string;
+    h2Outline: Array<{ heading: string; bullets: string[] }>;
+    entitiesToMention: string[];
+    paaQuestions: string[];
+    relatedSearches: string[];
+    topCompetitors: Array<{ title: string; url: string; snippet: string }>;
+    schemaSuggestions: string[];
+    internalLinkSuggestions: string[];
+    callToAction: string;
+  }> {
+    const country = dto.country ?? 'us';
+
+    let serp: Awaited<ReturnType<typeof this.serper.search>> | null = null;
+    let topResults: Array<{ title: string; url: string; snippet: string }> = [];
+    let paaQuestions: string[] = [];
+    let relatedSearches: string[] = [];
+
+    if (this.serper.isConfigured()) {
+      try {
+        serp = await this.serper.search(dto.query, { country, num: 10 });
+        const organic = serp?.organic ?? [];
+        topResults = organic.slice(0, 10).map((o) => ({
+          title: String(o.title ?? '').slice(0, 200),
+          url: String(o.link ?? ''),
+          snippet: String(o.snippet ?? '').slice(0, 300),
+        }));
+        const paa = (serp?.peopleAlsoAsk ?? []) as Array<{ question?: string }>;
+        paaQuestions = paa
+          .map((p) => String(p.question ?? ''))
+          .filter((q) => q.length > 5)
+          .slice(0, 8);
+        const related = (serp?.relatedSearches ?? []) as Array<{ query?: string }>;
+        relatedSearches = related
+          .map((r) => String(r.query ?? ''))
+          .filter((q) => q.length > 2)
+          .slice(0, 8);
+      } catch (err) {
+        this.logger.warn(`Brief SERP fetch failed: ${(err as Error).message}`);
+      }
+    }
+
+    const serpDigest = topResults
+      .map((r, i) => `${i + 1}. ${r.title} (${r.url}) — ${r.snippet}`)
+      .join('\n');
+    const paaList = paaQuestions.map((q) => `- ${q}`).join('\n');
+    const relList = relatedSearches.map((r) => `- ${r}`).join('\n');
+
+    const prompt = `You are an SEO + content strategist building a publish-ready content brief.
+
+Target query: "${dto.query}"
+Brand commissioning the article: "${dto.brand}"
+Brand's category: "${dto.category ?? 'unknown'}"
+Country: ${country}
+
+Top 10 SERP results for this query:
+${serpDigest || '(SERP data unavailable — infer from query)'}
+
+People Also Ask:
+${paaList || '(none)'}
+
+Related searches:
+${relList || '(none)'}
+
+Produce a publish-ready brief as VALID JSON only (no markdown, no commentary). The writer must be able to execute from your JSON alone. Match this exact shape:
+
+{
+  "intent": "informational | commercial | transactional | navigational",
+  "intentReason": "one sentence explaining why",
+  "targetWordCount": <integer 800-2500 based on top-10 SERP article depth>,
+  "title": "<55-60 char title with the target query verbatim, no clickbait>",
+  "metaDescription": "<145-160 char meta with the query + CTA>",
+  "h2Outline": [
+    { "heading": "<H2 1>", "bullets": ["<H3 or supporting point>", "<H3 or supporting point>"] },
+    { "heading": "<H2 2>", "bullets": ["..."] }
+    // 5-8 H2 sections total, mirror the structure SERP winners use
+  ],
+  "entitiesToMention": ["<entity 1>", "<entity 2>"],  // 8-15 concrete entities (places, brands, products, certifications) that signal topical depth to AI engines
+  "paaQuestions": <copy the PAA list above verbatim, max 8>,
+  "relatedSearches": <copy the related searches above verbatim, max 8>,
+  "topCompetitors": <copy the top 5 SERP results above with title/url/snippet>,
+  "schemaSuggestions": ["Article", "FAQPage if PAA included", "..."],
+  "internalLinkSuggestions": ["<topic 1 to link to internally>", "<topic 2>"],
+  "callToAction": "<one-line CTA matching intent: lead-magnet for informational, demo/quote for commercial>"
+}
+
+Hard rules:
+- Word count must reflect top-10 SERP depth (if winners average 2000 words, target 2200+)
+- H2 outline must cover every PAA question (each PAA = its own subsection or H3 bullet)
+- entitiesToMention must be concrete proper nouns + technical terms — not generic phrases
+- Never invent SERP results or PAA questions; only use what is provided above`;
+
+    const raw = await this.ai.generateText(prompt);
+    const parsed = this.parseBriefJson(raw);
+
+    return {
+      query: dto.query,
+      intent: parsed.intent || 'informational',
+      intentReason: parsed.intentReason || '',
+      targetWordCount: parsed.targetWordCount || 1500,
+      title: parsed.title || dto.query,
+      metaDescription: parsed.metaDescription || '',
+      h2Outline: parsed.h2Outline || [],
+      entitiesToMention: parsed.entitiesToMention || [],
+      paaQuestions: parsed.paaQuestions ?? paaQuestions,
+      relatedSearches: parsed.relatedSearches ?? relatedSearches,
+      topCompetitors: parsed.topCompetitors ?? topResults.slice(0, 5),
+      schemaSuggestions: parsed.schemaSuggestions || ['Article'],
+      internalLinkSuggestions: parsed.internalLinkSuggestions || [],
+      callToAction: parsed.callToAction || '',
+    };
+  }
+
+  private parseBriefJson(raw: string): {
+    intent?: string;
+    intentReason?: string;
+    targetWordCount?: number;
+    title?: string;
+    metaDescription?: string;
+    h2Outline?: Array<{ heading: string; bullets: string[] }>;
+    entitiesToMention?: string[];
+    paaQuestions?: string[];
+    relatedSearches?: string[];
+    topCompetitors?: Array<{ title: string; url: string; snippet: string }>;
+    schemaSuggestions?: string[];
+    internalLinkSuggestions?: string[];
+    callToAction?: string;
+  } {
+    const cleaned = raw
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```$/i, '')
+      .trim();
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start === -1 || end === -1) return {};
+    try {
+      return JSON.parse(cleaned.slice(start, end + 1));
+    } catch {
+      return {};
+    }
+  }
 
   async createScan(dto: CreateContentGapDto) {
     const brandRef = await this.getOrCreateBrand(dto.brand);

@@ -34,6 +34,17 @@ export class GenerateFaqSchemaDto {
   items!: FaqItemDto[];
 }
 
+export class GenerateFaqFromPaaDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  questions!: string[];
+
+  @IsString() @MinLength(2) @MaxLength(200) brand!: string;
+  @IsOptional() @IsString() @MaxLength(200) category?: string;
+}
+
 export class SocialProfilesDto {
   @IsOptional() @IsUrl() linkedin?: string;
   @IsOptional() @IsUrl() facebook?: string;

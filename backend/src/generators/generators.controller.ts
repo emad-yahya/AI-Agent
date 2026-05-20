@@ -2,6 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { GeneratorsService } from './generators.service';
 import {
   GenerateArticleSchemaDto,
+  GenerateFaqFromPaaDto,
   GenerateFaqSchemaDto,
   GenerateLlmsTxtDto,
   GenerateOrgSchemaDto,
@@ -16,6 +17,15 @@ export class GeneratorsController {
   @Post('schema/faq')
   faq(@Body() dto: GenerateFaqSchemaDto) {
     return this.service.generateFaqSchema(dto);
+  }
+
+  @Post('schema/faq-from-paa')
+  faqFromPaa(@Body() dto: GenerateFaqFromPaaDto) {
+    return this.service.generateFaqFromPaa({
+      questions: dto.questions,
+      brand: dto.brand,
+      category: dto.category,
+    });
   }
 
   @Post('schema/organization')
