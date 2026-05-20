@@ -1,24 +1,45 @@
 import { useEffect, useRef, useState } from "react";
 import { api, BASE_URL, type ScanProgressEvent } from "../api/client";
-import { Loader2, Radar, Rocket, Sparkles, Wand2, Zap } from 'lucide-react';
+import { Globe, Loader2, MapPin, Radar, Rocket, Sparkles, Wand2, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
-    onScanComplete: (brandId: string, scanId: string, brand: string, category: string) => void;
+    onScanComplete: (
+        brandId: string,
+        scanId: string,
+        brand: string,
+        category: string,
+        opts: { mode: Mode; domain: string; country: string },
+    ) => void;
 }
 
 type Phase = 'idle' | 'creating' | 'scanning' | 'loading';
-type Mode = 'quick' | 'full';
+type Mode = 'quick' | 'master';
 
 const MODE_META: Record<Mode, { calls: number; eta: string; label: string; tagline: string }> = {
-    quick: { calls: 15, eta: '~1 min', label: 'Quick scan', tagline: '5 prompts · 3 engines · sample coverage' },
-    full: { calls: 90, eta: '~6 min', label: 'Full GEO scan', tagline: '30 prompts · 3 engines · wide market coverage' },
+    quick: { calls: 15, eta: '~1 min', label: 'Quick scan', tagline: 'AI only · 5 prompts × 3 engines' },
+    master: { calls: 90, eta: '~8 min', label: 'Master scan', tagline: 'AI + Google · 30 prompts + full diagnostics + rank tracker' },
 };
+
+const COUNTRIES: Array<{ code: string; label: string }> = [
+    { code: 'us', label: '🇺🇸 United States' },
+    { code: 'gb', label: '🇬🇧 United Kingdom' },
+    { code: 'ae', label: '🇦🇪 UAE' },
+    { code: 'sa', label: '🇸🇦 Saudi Arabia' },
+    { code: 'eg', label: '🇪🇬 Egypt' },
+    { code: 'in', label: '🇮🇳 India' },
+    { code: 'de', label: '🇩🇪 Germany' },
+    { code: 'fr', label: '🇫🇷 France' },
+    { code: 'ca', label: '🇨🇦 Canada' },
+    { code: 'au', label: '🇦🇺 Australia' },
+];
 
 export function ScanForm({ onScanComplete }: Props) {
     const [brand, setBrand] = useState('');
     const [category, setCategory] = useState('');
-    const [mode, setMode] = useState<Mode>('quick');
+    const [domain, setDomain] = useState('');
+    const [country, setCountry] = useState('us');
+    const [mode, setMode] = useState<Mode>('master');
     const [phase, setPhase] = useState<Phase>('idle');
     const [progress, setProgress] = useState<{ completed: number; total: number } | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -27,8 +48,9 @@ export function ScanForm({ onScanComplete }: Props) {
     const lastSuggestedBrand = useRef<string>('');
 
     const isLoading = phase !== 'idle';
+    const needsDomain = mode === 'master';
+    const cleanDomain = stripDomainScheme(domain);
 
-    // Debounced category suggestions when brand changes
     useEffect(() => {
         const trimmed = brand.trim();
         if (trimmed.length < 2 || trimmed.toLowerCase() === lastSuggestedBrand.current) return;
@@ -49,13 +71,19 @@ export function ScanForm({ onScanComplete }: Props) {
 
     const handleSubmit = async () => {
         if (!brand.trim() || !category.trim()) return;
+        if (needsDomain && !cleanDomain) {
+            setError('Domain is required for Master scan (e.g. yoursite.com)');
+            return;
+        }
 
         setPhase('creating');
         setError(null);
         setProgress(null);
 
         try {
-            const { scanId, brandId } = await api.createScan(brand.trim(), category.trim(), mode);
+            // Master mode = run full AI breadth (90 calls). Quick = 15 calls.
+            const aiMode = mode === 'master' ? 'full' : 'quick';
+            const { scanId, brandId } = await api.createScan(brand.trim(), category.trim(), aiMode);
             setPhase('scanning');
 
             await new Promise<void>((resolve, reject) => {
@@ -80,7 +108,11 @@ export function ScanForm({ onScanComplete }: Props) {
                 };
             });
 
-            onScanComplete(brandId, scanId, brand.trim(), category.trim());
+            onScanComplete(brandId, scanId, brand.trim(), category.trim(), {
+                mode,
+                domain: cleanDomain,
+                country,
+            });
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Something went wrong');
         } finally {
@@ -96,7 +128,7 @@ export function ScanForm({ onScanComplete }: Props) {
                 ? `Scanning ${progress.completed}/${progress.total} calls...`
                 : 'Scanning...';
             case 'loading': return 'Loading results...';
-            default: return 'Run scan';
+            default: return mode === 'master' ? 'Run Master scan' : 'Run Quick scan';
         }
     };
 
@@ -124,10 +156,10 @@ export function ScanForm({ onScanComplete }: Props) {
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
                                    bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white shadow-[0_4px_12px_-2px_rgba(99,102,241,0.5)]"
                     >
-                        <Sparkles className="w-3 h-3" /> Live AI scan
+                        <Sparkles className="w-3 h-3" /> Live scan
                     </motion.span>
                     <span className="text-[10px] uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Zap className="w-3 h-3" /> {MODE_META[mode].eta} · {MODE_META[mode].calls} calls
+                        <Zap className="w-3 h-3" /> {MODE_META[mode].eta} · {MODE_META[mode].calls} AI calls
                     </span>
                 </div>
 
@@ -135,14 +167,14 @@ export function ScanForm({ onScanComplete }: Props) {
                     Run a <span className="text-gradient">new scan</span>
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                    Ask <b className="text-emerald-600">ChatGPT</b>, <b className="text-blue-600">Gemini</b> & <b className="text-violet-600">Perplexity</b> 5 questions about your category — see exactly what they say about you.
+                    Master scan = <b className="text-emerald-600">AI</b> (ChatGPT/Gemini/Perplexity) <span className="text-slate-400">+</span> <b className="text-blue-600">Google</b> (Knowledge Panel, SERP, PAA, Core Web Vitals, rank tracker). One click, full coverage.
                 </p>
 
                 <div className="mt-6 flex flex-col gap-4">
                     <div className="flex flex-col gap-2">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.14em]">Scan depth</span>
                         <div className="grid grid-cols-2 gap-2">
-                            {(['quick', 'full'] as Mode[]).map((m) => {
+                            {(['quick', 'master'] as Mode[]).map((m) => {
                                 const meta = MODE_META[m];
                                 const active = mode === m;
                                 const Icon = m === 'quick' ? Zap : Rocket;
@@ -190,6 +222,43 @@ export function ScanForm({ onScanComplete }: Props) {
                             accent="from-cyan-500 to-blue-600"
                         />
                     </div>
+
+                    <AnimatePresence>
+                        {mode === 'master' && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-hidden"
+                            >
+                                <Field
+                                    label="Website domain"
+                                    value={domain}
+                                    onChange={setDomain}
+                                    placeholder="yoursite.com"
+                                    disabled={isLoading}
+                                    accent="from-emerald-500 to-teal-500"
+                                    Icon={Globe}
+                                />
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-500 mb-1.5 block uppercase tracking-[0.14em]">Target country</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                                        <select
+                                            value={country}
+                                            onChange={(e) => setCountry(e.target.value)}
+                                            disabled={isLoading}
+                                            className="w-full border border-slate-200 rounded-[var(--radius-control)] pl-9 pr-3 py-3 text-sm bg-white text-slate-900 focus:outline-none focus:border-slate-300 disabled:bg-slate-50"
+                                        >
+                                            {COUNTRIES.map((c) => (
+                                                <option key={c.code} value={c.code}>{c.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <AnimatePresence>
                         {(suggestLoading || suggestions.length > 0) && (
@@ -256,6 +325,7 @@ export function ScanForm({ onScanComplete }: Props) {
                                 <p className="text-xs text-slate-500 text-right flex items-center justify-end gap-1.5">
                                     <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-500 glow-dot" />
                                     {progress.completed}/{progress.total} AI calls complete
+                                    {mode === 'master' && ' — Google diagnostics start after AI'}
                                 </p>
                             </motion.div>
                         )}
@@ -264,7 +334,7 @@ export function ScanForm({ onScanComplete }: Props) {
                     <motion.button
                         whileTap={{ scale: 0.98 }}
                         onClick={handleSubmit}
-                        disabled={isLoading || !brand.trim() || !category.trim()}
+                        disabled={isLoading || !brand.trim() || !category.trim() || (needsDomain && !cleanDomain)}
                         className="relative w-full overflow-hidden rounded-xl py-3.5 font-semibold text-white text-sm
                                    bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600
                                    disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:cursor-not-allowed
@@ -298,11 +368,16 @@ export function ScanForm({ onScanComplete }: Props) {
     );
 }
 
+function stripDomainScheme(raw: string): string {
+    return raw.trim().replace(/^https?:\/\//i, '').replace(/\/$/, '').trim();
+}
+
 function Field({
-    label, value, onChange, placeholder, disabled, accent,
+    label, value, onChange, placeholder, disabled, accent, Icon,
 }: {
     label: string; value: string; onChange: (v: string) => void;
     placeholder: string; disabled: boolean; accent: string;
+    Icon?: typeof Globe;
 }) {
     const [focused, setFocused] = useState(false);
     return (
@@ -316,6 +391,9 @@ function Field({
                         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                     />
                 )}
+                {Icon && (
+                    <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 z-10 pointer-events-none" />
+                )}
                 <input
                     type="text"
                     value={value}
@@ -324,10 +402,10 @@ function Field({
                     onBlur={() => setFocused(false)}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className="relative w-full border border-slate-200 rounded-[var(--radius-control)] px-3.5 py-3 text-sm
+                    className={`relative w-full border border-slate-200 rounded-[var(--radius-control)] ${Icon ? 'pl-9' : 'pl-3.5'} pr-3.5 py-3 text-sm
                                bg-white placeholder:text-slate-400 text-slate-900
                                focus:outline-none focus:border-slate-300
-                               disabled:bg-slate-50 disabled:text-slate-400 transition-all"
+                               disabled:bg-slate-50 disabled:text-slate-400 transition-all`}
                 />
             </div>
         </div>
