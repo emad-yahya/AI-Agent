@@ -1,8 +1,6 @@
 # AI Visibility Tracker
 
-Track how your brand appears across AI search engines like ChatGPT, Gemini, and Perplexity — and watch visibility change over time.
-
-Built as a portfolio project to demonstrate full-stack skills with NestJS, React, Firestore, and AI orchestration.
+Coaching-grade SaaS for brand visibility in AI search (ChatGPT / Gemini / Perplexity) + Google SERP. Diagnoses gaps, teaches user step-by-step how to fix each one, tracks progress over time.
 
 ![Dashboard](./dashboard.png)
 
@@ -10,12 +8,30 @@ Built as a portfolio project to demonstrate full-stack skills with NestJS, React
 
 ## What it does
 
-- Run a scan for any brand + category (e.g. "Bosch" + "home appliances")
-- Fires up to 15 prompts across 3 simulated AI engine personas (configurable via env vars)
-- Parses each response: was the brand mentioned? at what position? positive or negative sentiment?
-- Calculates a visibility score (0–100) per response
-- Stores all results in Firestore and aggregates them over time
-- Displays a live dashboard: score timeline, engine breakdown, mention rate
+**Diagnosis layer:**
+- AI visibility scan — 15 prompts × 3 engines (ChatGPT via OpenAI, Gemini, Perplexity-style via Gemini+Google Search grounding)
+- Real-visibility vs Echo-rate split (unbiased prompts vs brand-cued prompts)
+- Competitor schema audit (10 signals per site: GPTBot/ClaudeBot access, llms.txt, JSON-LD, FAQ, sitemap, etc)
+- Brand presence (Google Knowledge Panel + Wikipedia detection per brand)
+- On-page SEO audit + Core Web Vitals (PSI v5)
+- Content gap finder per query (SERP + PAA + opportunity score)
+- Listicle gap (articles featuring competitors but not you)
+
+**Coaching layer (P0-P2 shipped 2026-05-20):**
+- LLM-based onboarding category classification (returns category + audience + geo + business model)
+- Priority engine that flags 0% real-visibility as critical, escalates audit gaps vs competitor median
+- Per-action Playbook: why-it-matters + copy-paste JSON-LD/robots/llms.txt + verification steps + timeline + common pitfalls + resources
+- Citation Building Playbook: Wikipedia notability checker, Wikidata claim template, press release + email pitch templates, directory list
+- Content Brief Generator (per query): intent, word-count target, H2 outline, entities to mention, schema suggestions
+- PAA → FAQ schema generator (one click writes 40-80 word answers + JSON-LD)
+- Progress Dashboard with action-completion checkboxes + week-over-week deltas
+- Competitor Benchmark per metric (your vs top vs median)
+- Weekly Digest endpoint (markdown summary)
+- System Health panel that tests every external API key
+
+**Resilience:**
+- Multi-region Gemini key rotation (`GOOGLE_GEMINI_API_KEYS` CSV or `GOOGLE_GEMINI_API_KEY_2..10`) — survives free-tier 429s
+- Settings tab tests each key + shows setup steps for missing ones
 
 ---
 
@@ -86,26 +102,47 @@ cp backend/.env.example backend/.env
 Fill in `backend/.env`:
 
 ```env
-ANTHROPIC_API_KEY=your_key_here
-OPENROUTER_API_KEY=your_key_here
+# === REQUIRED ===
+GOOGLE_GEMINI_API_KEY=AIzaSy...      # https://aistudio.google.com/app/apikey  (free 60 req/min per key)
+SERPER_API_KEY=...                   # https://serper.dev/api-key (free 2500 queries on signup)
 
-AI_PROVIDER=openrouter               # or 'anthropic'
-OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
+# === HIGHLY RECOMMENDED ===
+GOOGLE_PSI_API_KEY=AIzaSy...         # PageSpeed Insights — lifts quota to 25k/day. Without it, Core Web Vitals return null
+                                     # Setup: https://console.cloud.google.com/apis/library/pagespeedonline.googleapis.com
+                                     # → Enable → Credentials → Create API key
+OPENAI_API_KEY=sk-...                # https://platform.openai.com/api-keys (~$0.001/scan for gpt-4o-mini)
+
+# === RESILIENCE — extra Gemini keys for 429 rotation ===
+# Either CSV form:
+GOOGLE_GEMINI_API_KEYS=AIzaSyA...,AIzaSyB...,AIzaSyC...
+# Or numbered form:
+GOOGLE_GEMINI_API_KEY_2=AIzaSy...
+GOOGLE_GEMINI_API_KEY_3=AIzaSy...
+# (up to _10)
+
+# === FALLBACK ===
+OPENROUTER_API_KEY=...               # https://openrouter.ai/keys — used when Gemini key missing
+ANTHROPIC_API_KEY=...                # Optional Claude provider
+
+# === MODEL / SCAN CONFIG ===
+AI_PROVIDER=openrouter               # or 'anthropic' (fallback only — Gemini direct preferred)
+OPENROUTER_MODEL=google/gemma-4-31b-it:free
 ANTHROPIC_MODEL=claude-haiku-4-5
+AI_MAX_ENGINES=3                     # 3 = chatgpt-style + gemini-style + perplexity-style
+AI_MAX_PROMPTS=5                     # 5 quick prompts (one per intent bucket)
+AI_CONCURRENCY=2
+AI_DELAY_MS=2000
 
-# Scan scope (default: 2 engines × 2 prompts = 4 calls per scan)
-AI_MAX_ENGINES=2
-AI_MAX_PROMPTS=2
-AI_CONCURRENCY=1
-AI_DELAY_MS=2500
+# === CORS + AUTH ===
+FRONTEND_URL=http://localhost:5173   # NO trailing slash
+API_KEY=...                          # Optional bearer token middleware (omit for local dev)
 
-# CORS (set to your production frontend URL before deploying)
-FRONTEND_URL=http://localhost:5173
-
-# Rate limiting on POST /api/scans (5 requests per IP per minute)
+# === RATE LIMITING ===
 THROTTLE_TTL_MS=60000
 THROTTLE_SCAN_LIMIT=5
 ```
+
+**Check that every key works:** open `/settings` in the frontend → click "Re-check". The System Health panel pings each provider and shows ✅/❌ with exact setup steps for any missing key.
 
 Add your Firebase service account key:
 
@@ -169,17 +206,46 @@ Open http://localhost:5173
 
 ```
 ai-visibility-tracker/
-├── backend/
-│   └── src/
-│       ├── ai/           ← orchestrator, parser, prompts
-│       ├── analytics/    ← GET /api/analytics
-│       ├── common/       ← shared TypeScript types
-│       ├── firebase/     ← Firestore client
-│       └── scans/        ← POST /api/scans
-└── frontend/
-    └── src/
-        ├── api/          ← typed axios client
-        ├── components/   ← ScanForm, ResultsTable, charts
-        ├── hooks/        ← useAsync
-        └── pages/        ← Dashboard
+├── backend/src/
+│   ├── ai/                 — Gemini/OpenAI/OpenRouter/Anthropic orchestrator + multi-key pool rotation
+│   ├── scans/              — POST /api/scans (AI visibility scan, 3 engines)
+│   ├── analytics/          — GET /api/analytics
+│   ├── seo/                — Crawler + Serper + SeoSiteScan flow
+│   ├── competitor-audit/   — 10-signal schema audit per brand + 6 competitors
+│   ├── brand-presence/     — Knowledge Panel + Wikipedia detection
+│   ├── listicle-gap/       — "best X in Y" gap detector
+│   ├── on-page-seo/        — Title/meta/H1/schema/alt audit + PSI v5
+│   ├── content-gap/        — POST /api/content-gap/scan + brief + paa
+│   ├── generators/         — Schema generators (FAQ, Org, Article, Review, llms.txt, robots, FAQ-from-PAA)
+│   ├── geo-actions/        — Action synthesis + progress + benchmark + digest + completion tracking
+│   ├── onboarding/         — POST /api/onboarding/analyze + start
+│   ├── system-health/      — GET /api/system/health/integrations
+│   ├── alerts/             — Threshold-triggered alerts
+│   └── scheduler/          — Cron-driven AI scans
+└── frontend/src/
+    ├── api/client.ts       — Typed axios client (all endpoints)
+    └── components/
+        ├── ScanForm, ResultsTable, RecommendationsPanel
+        ├── OnboardingWizard, GeneratorModal, GeneratorToolbar
+        ├── BrandPresencePanel, GeoActionsPanel (with playbook UI + completion checkboxes)
+        ├── OnPageSeoPanel, ContentGapPanel (with brief + PAA-FAQ modals)
+        ├── ProgressPanel (deltas + weekly-digest modal)
+        ├── BenchmarkPanel (you vs top vs median)
+        └── SystemHealthPanel (env keys verification)
+```
+
+---
+
+## New API routes (post P0-P2 ship)
+
+```
+GET    /api/system/health/integrations    — test each provider key
+GET    /api/geo-actions                   — full action report with playbooks
+GET    /api/geo-actions/progress          — 8-snapshot timeline + deltas
+GET    /api/geo-actions/benchmark         — per-metric you vs top vs median
+GET    /api/geo-actions/digest            — markdown weekly summary
+GET    /api/geo-actions/completions       — per-action completion state
+POST   /api/geo-actions/completion        — toggle action complete
+POST   /api/content-gap/brief             — SERP+PAA → full content brief
+POST   /api/generators/schema/faq-from-paa — LLM writes FAQ answers + JSON-LD
 ```
