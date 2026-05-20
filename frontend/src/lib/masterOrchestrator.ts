@@ -43,6 +43,83 @@ const NON_COMPANY_PHRASES = new Set([
     'quick wins', 'long term', 'short term', 'high quality', 'low cost',
     'wide range', 'years experience', 'last year', 'this year', 'next year',
     'north america', 'south america', 'middle east', 'south asia', 'european union',
+    'service charges', 'older buildings', 'newer buildings', 'check online listings',
+    'online listings', 'consider shared accommodation', 'shared accommodation',
+    'explore nearby areas', 'nearby areas', 'price range', 'square feet',
+    'good location', 'prime location', 'central location', 'public transport',
+    'customer service', 'customer support', 'free wifi', 'great views',
+]);
+
+// Verbs and adjectives that signal a sentence fragment, not a brand name.
+const SENTENCE_STARTERS = new Set([
+    'check', 'consider', 'explore', 'find', 'search', 'visit', 'try', 'use',
+    'compare', 'contact', 'ask', 'browse', 'review', 'avoid', 'choose',
+    'pick', 'select', 'see', 'look', 'read', 'get', 'buy', 'rent', 'book',
+    'call', 'email', 'older', 'newer', 'best', 'top', 'cheap', 'cheapest',
+    'affordable', 'luxury', 'budget', 'large', 'small', 'modern', 'classic',
+    'good', 'great', 'high', 'low', 'nearby', 'local', 'online', 'free',
+    'paid', 'private', 'public', 'open', 'closed', 'new', 'old',
+]);
+
+// Generic singleton nouns that leak through (concepts, not entities).
+const GENERIC_SINGLETONS = new Set([
+    'listings', 'areas', 'buildings', 'accommodation', 'charges', 'fees',
+    'reviews', 'ratings', 'options', 'choices', 'services', 'features',
+    'amenities', 'facilities', 'prices', 'costs', 'budget', 'agents',
+    'brokers', 'developers', 'companies', 'firms', 'agencies',
+]);
+
+// Landmarks, neighborhoods, geographic features — not competitors.
+const GEO_TOKENS = new Set([
+    'mall', 'burj', 'tower', 'towers', 'marina', 'beach', 'palm', 'island',
+    'downtown', 'creek', 'lagoon', 'gulf', 'sea', 'bay', 'port', 'harbor',
+    'park', 'district', 'centre', 'center', 'plaza', 'square', 'avenue',
+    'street', 'road', 'boulevard', 'ranches', 'hills', 'heights', 'gardens',
+    'meadows', 'springs', 'lakes', 'shores', 'oasis', 'village',
+    // city/country/region
+    'dubai', 'abu', 'sharjah', 'ajman', 'fujairah', 'uae', 'emirates',
+    'difc', 'jbr', 'jvc', 'jlt', 'mbr',
+]);
+
+function isLikelyBrandName(t: string): boolean {
+    const words = t.split(/\s+/).filter(Boolean);
+    if (words.length === 0 || words.length > 4) return false;
+
+    const lower = t.toLowerCase();
+    if (NON_COMPANY_PHRASES.has(lower)) return false;
+
+    const firstLower = words[0].toLowerCase();
+    if (SENTENCE_STARTERS.has(firstLower)) return false;
+    if (/^(in|on|at|of|for|to|with|from|by)\s+/i.test(t)) return false;
+
+    // Each word must start uppercase (proper noun heuristic).
+    // Allow "&", "and", "of", "the", "for" as connectors mid-name.
+    const connectors = new Set(['&', 'and', 'of', 'the', 'for', 'la', 'le', 'de', 'du']);
+    for (let i = 0; i < words.length; i++) {
+        const w = words[i];
+        if (i > 0 && connectors.has(w.toLowerCase())) continue;
+        if (!/^[A-Z]/.test(w)) return false;
+    }
+
+    // Single-word lower-case-stem in generic singletons set.
+    if (words.length === 1 && GENERIC_SINGLETONS.has(firstLower)) return false;
+
+    // Any geo/landmark token disqualifies UNLESS the phrase carries a
+    // corporate suffix (then it's a real company that happens to be named
+    // after a place — e.g. "Dubai Properties", "Emirates Group").
+    const geoCount = words.filter((w) => GEO_TOKENS.has(w.toLowerCase())).length;
+    const hasCorp = words.some((w) => CORP_SUFFIXES.has(w.toLowerCase()));
+    if (geoCount >= 2) return false; // two geo tokens = place name (e.g. "Dubai Marina", "Burj Khalifa")
+    if (geoCount === 1 && !hasCorp) return false;
+
+    return true;
+}
+
+const CORP_SUFFIXES = new Set([
+    'inc', 'llc', 'ltd', 'corp', 'co', 'group', 'holdings', 'company',
+    'partners', 'capital', 'ventures', 'labs', 'studio', 'studios',
+    'systems', 'solutions', 'technologies', 'tech', 'media', 'agency',
+    'properties', 'realty', 'estates', 'brokers', 'homes', 'international',
 ]);
 
 export function extractCompetitorsFromResults(
@@ -57,10 +134,7 @@ export function extractCompetitorsFromResults(
             const t = topic.trim();
             if (!t) continue;
             if (t.toLowerCase().includes(brandLower)) continue;
-            if (NON_COMPANY_PHRASES.has(t.toLowerCase())) continue;
-            if (/^in\s+/i.test(t)) continue;
-            // Drop overly long phrases (3+ words usually not company names)
-            if (t.split(/\s+/).length > 4) continue;
+            if (!isLikelyBrandName(t)) continue;
             counts.set(t, (counts.get(t) ?? 0) + 1);
         }
     }
