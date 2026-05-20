@@ -6,7 +6,6 @@ import { ResultTable } from './components/ResultsTable';
 import { Dashboard } from './pages/Dashboard';
 import { CompareForm } from './components/CompareForm';
 import { ComparisonTable } from './components/ComparisonTable';
-import { RecommendationsPanel } from './components/RecommendationsPanel';
 import { ExportButtons } from './components/ExportButtons';
 import { SeoSiteForm } from './components/SeoSiteForm';
 import { SeoSiteDashboard } from './components/SeoSiteDashboard';
@@ -29,11 +28,6 @@ import { GeneratorModal, type GeneratorKind } from './components/GeneratorModal'
 import { CompetitorTrendChart } from './components/CompetitorTrend';
 import { AlertSettings } from './components/AlertSettings';
 import { SovChart } from './components/SovChart';
-import { PromptCoverageMap } from './components/PromptCoverageMap';
-import { ActionPlan } from './components/ActionPlan';
-import { ImpactPredictor } from './components/ImpactPredictor';
-import { ContentGenerator } from './components/ContentGenerator';
-import { CompetitorPlaybook } from './components/CompetitorPlaybook';
 import { SectionIntro } from './components/Hint';
 import { api, type ScanResponse, type BrandComparisonResult } from './api/client';
 import { useAsync } from './hooks/useAsync';
@@ -62,7 +56,7 @@ export default function App() {
   const [lastScanBrandId, setLastScanBrandId] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState<GeneratorKind | null>(null);
-  const [geoActionsCount, setGeoActionsCount] = useState<number | null>(null);
+  const [scanSubTab, setScanSubTab] = useState<'overview' | 'actions' | 'diagnostics' | 'tools'>('overview');
   const { loading, run } = useAsync<ScanResponse>();
 
   const handleScanComplete = async (brandId: string, scanId: string, brand: string, category: string) => {
@@ -202,48 +196,49 @@ export default function App() {
                         recommendations={scanResult.recommendations}
                       />
                     </div>
-                    <ResultTable results={scanResult.results} stats={scanResult.stats} />
-                    <TopicsPanel results={scanResult.results} />
-                    <CitationsPanel results={scanResult.results} brand={scanMeta.brand} />
-                    <ListicleGapPanel
-                      brand={scanMeta.brand}
-                      category={scanMeta.category}
-                      results={scanResult.results}
-                    />
-                    <CompetitorAuditPanel
-                      brand={scanMeta.brand}
-                      results={scanResult.results}
-                    />
-                    <BrandPresencePanel
-                      brand={scanMeta.brand}
-                      results={scanResult.results}
-                    />
-                    <GeoActionsPanel
-                      brand={scanMeta.brand}
-                      onActionsLoaded={(c) => setGeoActionsCount(c)}
-                    />
-                    <ProgressPanel brand={scanMeta.brand} />
-                    <BenchmarkPanel brand={scanMeta.brand} />
-                    <OnPageSeoPanel brand={scanMeta.brand} />
-                    <ContentGapPanel brand={scanMeta.brand} results={scanResult.results} />
-                    <GeneratorToolbar onOpen={(k) => setGeneratorOpen(k)} brand={scanMeta.brand} />
-                    <PromptCoverageMap brand={scanMeta.brand} />
-                    {/* GeoActionsPanel covers data-driven recommendations. Only show the
-                        generic LLM recs panel when GeoActions has nothing to surface. */}
-                    {(geoActionsCount === null || geoActionsCount === 0) && (
-                      <RecommendationsPanel recommendations={scanResult.recommendations} />
+                    <ScanSubTabs current={scanSubTab} onChange={setScanSubTab} />
+
+                    {scanSubTab === 'overview' && (
+                      <>
+                        <ResultTable results={scanResult.results} stats={scanResult.stats} />
+                        <ProgressPanel brand={scanMeta.brand} />
+                        <BenchmarkPanel brand={scanMeta.brand} />
+                        <TopicsPanel results={scanResult.results} />
+                        <CitationsPanel results={scanResult.results} brand={scanMeta.brand} />
+                      </>
                     )}
-                    <ImpactPredictor results={scanResult.results} stats={scanResult.stats} brand={scanMeta.brand} />
-                    <CompetitorPlaybook playbook={scanResult.competitorPlaybook} brand={scanMeta.brand} />
-                    <ActionPlan recommendations={scanResult.recommendations} brand={scanMeta.brand} />
-                    <ContentGenerator
-                      brand={scanMeta.brand}
-                      category={scanMeta.category}
-                      mentionRate={scanResult.stats.mentionRate}
-                      avgScore={scanResult.stats.avgScore}
-                    />
-                    {lastScanBrandId && (
-                      <AlertSettings brandId={lastScanBrandId} brandName={scanMeta.brand} />
+
+                    {scanSubTab === 'actions' && (
+                      <GeoActionsPanel brand={scanMeta.brand} />
+                    )}
+
+                    {scanSubTab === 'diagnostics' && (
+                      <>
+                        <BrandPresencePanel
+                          brand={scanMeta.brand}
+                          results={scanResult.results}
+                        />
+                        <CompetitorAuditPanel
+                          brand={scanMeta.brand}
+                          results={scanResult.results}
+                        />
+                        <OnPageSeoPanel brand={scanMeta.brand} />
+                        <ContentGapPanel brand={scanMeta.brand} results={scanResult.results} />
+                        <ListicleGapPanel
+                          brand={scanMeta.brand}
+                          category={scanMeta.category}
+                          results={scanResult.results}
+                        />
+                      </>
+                    )}
+
+                    {scanSubTab === 'tools' && (
+                      <>
+                        <GeneratorToolbar onOpen={(k) => setGeneratorOpen(k)} brand={scanMeta.brand} />
+                        {lastScanBrandId && (
+                          <AlertSettings brandId={lastScanBrandId} brandName={scanMeta.brand} />
+                        )}
+                      </>
                     )}
                   </motion.div>
                 )}
@@ -385,6 +380,46 @@ function tabSubtitle(t: Tab) {
 }
 
 void React;
+
+type ScanSubTab = 'overview' | 'actions' | 'diagnostics' | 'tools';
+
+const SCAN_SUBTABS: Array<{ key: ScanSubTab; label: string; Icon: typeof ScanSearch; hint: string }> = [
+  { key: 'overview',    label: 'Overview',    Icon: LayoutDashboard, hint: 'Real visibility, deltas, benchmark' },
+  { key: 'actions',     label: 'Actions',     Icon: Rocket,          hint: 'Data-driven fixes with playbooks' },
+  { key: 'diagnostics', label: 'Diagnostics', Icon: ScanSearch,      hint: 'Brand presence, audit, on-page, content gap' },
+  { key: 'tools',       label: 'Tools',       Icon: Code,            hint: 'Schema generators, alerts' },
+];
+
+function ScanSubTabs({
+  current,
+  onChange,
+}: {
+  current: ScanSubTab;
+  onChange: (t: ScanSubTab) => void;
+}) {
+  return (
+    <div className="flex gap-1 bg-white/70 backdrop-blur rounded-xl p-1.5 ring-1 ring-slate-200/60 shadow-[var(--shadow-soft)] overflow-x-auto">
+      {SCAN_SUBTABS.map(({ key, label, Icon, hint }) => {
+        const active = current === key;
+        return (
+          <button
+            key={key}
+            onClick={() => onChange(key)}
+            title={hint}
+            className={`relative px-3 py-1.5 rounded-lg text-[12px] font-semibold flex items-center gap-1.5 whitespace-nowrap transition-colors ${
+              active
+                ? 'bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white shadow-[0_4px_12px_-2px_rgba(99,102,241,0.45)]'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Icon className={`w-3.5 h-3.5 ${active ? 'text-white' : ''}`} />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function GeneratorToolbar({
   onOpen,
