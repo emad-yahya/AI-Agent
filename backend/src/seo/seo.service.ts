@@ -327,17 +327,21 @@ export class SeoService {
       results: SeoResult[];
     },
   ): Promise<SeoAnomaly[]> {
-    // Find the most recent completed scan BEFORE this one
+    // Find the most recent completed scan BEFORE this one.
+    // Use orderBy-only (no composite where+orderBy) to avoid requiring
+    // a Firestore composite index; filter status='done' in memory.
     const snap = await this.firebase
       .seoSiteScans(siteId)
-      .where('status', '==', 'done')
       .orderBy('createdAt', 'desc')
-      .limit(1)
+      .limit(10)
       .get();
 
-    if (snap.empty) return [];
+    const prevDone = snap.docs
+      .map((d) => d.data() as SeoSiteScan)
+      .find((s) => s.status === 'done');
+    if (!prevDone) return [];
 
-    const prev = snap.docs[0].data() as SeoSiteScan;
+    const prev = prevDone;
     const anomalies: SeoAnomaly[] = [];
 
     // 1. Average position drop
