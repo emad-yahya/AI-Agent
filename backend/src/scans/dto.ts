@@ -24,4 +24,14 @@ export class CreateScanDto {
   @IsOptional()
   @IsIn(['quick', 'full'])
   mode?: ScanMode;
+
+  // Stored on the scan doc so any device can rebuild the full scan view
+  // (action plan / Google panels need domain + country).
+  @IsOptional()
+  @IsString()
+  domain?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
 }

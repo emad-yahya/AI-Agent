@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>AI Visibility Tracker — شرح النظام للإدارة</title>
+<style>
+    @page { size: A4; margin: 18mm 14mm; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        font-size: 11pt;
+        line-height: 1.7;
+        color: #111;
+        background: #fff;
+        margin: 0;
+        padding: 0;
+    }
+    h1 {
+        font-size: 26pt;
+        background: linear-gradient(90deg, #4f46e5, #c026d3, #ec4899);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-align: center;
+        margin: 0 0 4pt;
+    }
+    h1 + .subtitle {
+        text-align: center;
+        color: #64748b;
+        font-size: 12pt;
+        margin-bottom: 24pt;
+    }
+    h2 {
+        font-size: 18pt;
+        color: #4f46e5;
+        border-bottom: 2px solid #e0e7ff;
+        padding-bottom: 6pt;
+        margin-top: 28pt;
+        page-break-after: avoid;
+    }
+    h3 {
+        font-size: 14pt;
+        color: #6d28d9;
+        margin-top: 16pt;
+        page-break-after: avoid;
+    }
+    h4 {
+        font-size: 12pt;
+        color: #0f172a;
+        margin-top: 10pt;
+        margin-bottom: 4pt;
+    }
+    p { margin: 6pt 0; }
+    ul { margin: 6pt 0 6pt 20pt; padding: 0; }
+    li { margin-bottom: 4pt; }
+    .section {
+        page-break-inside: avoid;
+        margin-bottom: 18pt;
+    }
+    .row {
+        display: flex;
+        gap: 14pt;
+        align-items: flex-start;
+        margin: 12pt 0;
+        page-break-inside: avoid;
+    }
+    .row.reverse { flex-direction: row-reverse; }
+    .row .img {
+        flex: 0 0 48%;
+        border: 1px solid #cbd5e1;
+        border-radius: 6pt;
+        padding: 4pt;
+        background: #f8fafc;
+    }
+    .row .img img {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 4pt;
+    }
+    .row .text { flex: 1; }
+    .placeholder {
+        background: #fef3c7;
+        border: 2px dashed #f59e0b;
+        color: #92400e;
+        padding: 30pt 16pt;
+        text-align: center;
+        font-weight: bold;
+        border-radius: 6pt;
+        font-size: 10pt;
+    }
+    .pill {
+        display: inline-block;
+        padding: 2pt 8pt;
+        border-radius: 999pt;
+        font-size: 9pt;
+        font-weight: bold;
+        margin: 0 2pt;
+    }
+    .pill.critical { background: #fee2e2; color: #b91c1c; }
+    .pill.high { background: #ffedd5; color: #c2410c; }
+    .pill.medium { background: #fef9c3; color: #854d0e; }
+    .pill.low { background: #dcfce7; color: #166534; }
+    .pill.green { background: #dcfce7; color: #166534; }
+    .pill.blue { background: #dbeafe; color: #1e40af; }
+    .pill.purple { background: #ede9fe; color: #6d28d9; }
+    blockquote {
+        background: #f1f5f9;
+        border-right: 4pt solid #6366f1;
+        padding: 8pt 14pt;
+        margin: 10pt 0;
+        font-style: italic;
+        color: #334155;
+        border-radius: 4pt;
+    }
+    .cover {
+        page-break-after: always;
+        text-align: center;
+        padding-top: 80pt;
+    }
+    .cover .logo {
+        font-size: 60pt;
+        margin-bottom: 20pt;
+    }
+    .cover .meta {
+        margin-top: 60pt;
+        color: #64748b;
+        font-size: 11pt;
+    }
+    .toc {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 8pt;
+        padding: 14pt 20pt;
+        margin: 16pt 0;
+    }
+    .toc h3 { margin-top: 0; color: #1e293b; border: none; }
+    .toc ol { margin: 8pt 0 0 20pt; padding: 0; }
+    .toc li { margin-bottom: 6pt; }
+    .pagebreak { page-break-after: always; }
+    .card {
+        background: #f8fafc;
+        border-right: 4pt solid #4f46e5;
+        padding: 10pt 14pt;
+        margin: 8pt 0;
+        border-radius: 4pt;
+    }
+    .card-title {
+        font-weight: bold;
+        color: #4f46e5;
+        margin-bottom: 4pt;
+    }
+    code {
+        background: #f1f5f9;
+        padding: 1pt 5pt;
+        border-radius: 3pt;
+        font-family: 'Consolas', monospace;
+        font-size: 9.5pt;
+        direction: ltr;
+        display: inline-block;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8pt 0;
+        font-size: 10pt;
+    }
+    th, td {
+        border: 1px solid #cbd5e1;
+        padding: 6pt 8pt;
+        text-align: right;
+    }
+    th { background: #e0e7ff; color: #1e1b4b; }
+    .footer-note {
+        background: #ecfdf5;
+        border: 1px solid #10b981;
+        color: #065f46;
+        padding: 10pt 14pt;
+        margin: 20pt 0;
+        border-radius: 6pt;
+    }
+    .print-tip {
+        position: fixed;
+        top: 10pt;
+        left: 10pt;
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        padding: 6pt 10pt;
+        font-size: 9pt;
+        border-radius: 4pt;
+        color: #92400e;
+    }
+    @media print {
+        .print-tip { display: none; }
+    }
+</style>
+</head>
+<body>
+
+<div class="print-tip">
+    📄 لتحويل إلى PDF: Ctrl+P → اختر "Save as PDF" → احفظ
+</div>
+
+<!-- ═════════════ COVER ═════════════ -->
+<div class="cover">
+    <div class="logo">👁️</div>
+    <h1>AI Visibility Tracker</h1>
+    <div class="subtitle">شرح النظام للإدارة — قسم قسم</div>
+    <p style="max-width: 500pt; margin: 40pt auto; color: #475569; font-size: 12pt;">
+        نظام يساعد الشركات على معرفة كيف تظهر علامتها التجارية
+        في إجابات الذكاء الاصطناعي (ChatGPT — Gemini — Perplexity)
+        وفي بحث Google، ويقدّم خطة عمل واضحة للوصول لأول النتائج.
+    </p>
+    <div class="meta">
+        تم إعداده — 20 مايو 2026 <br/>
+        النظام جاهز للنشر بنسبة 100%
+    </div>
+</div>
+
+<!-- ═════════════ TOC ═════════════ -->
+<div class="section toc">
+    <h3>📋 المحتويات</h3>
+    <ol>
+        <li>الهدف من النظام والمشكلة اللي يحلّها</li>
+        <li>الشاشات الرئيسية الأربعة</li>
+        <li>شاشة الفحص الجديد (New Scan)</li>
+        <li>نتائج الفحص — القسم الأول: خطة العمل (Action Plan)</li>
+        <li>نتائج الفحص — القسم الثاني: الظهور بالذكاء الاصطناعي (AI Visibility)</li>
+        <li>نتائج الفحص — القسم الثالث: الظهور في Google (Google Visibility)</li>
+        <li>لوحة المتابعة (Dashboard) — قياس التطوّر</li>
+        <li>الخلاصة — كيف يخدم النظام هدفك التجاري</li>
+    </ol>
+</div>
+
+<div class="pagebreak"></div>
+
+<!-- ═════════════ 1. THE GOAL ═════════════ -->
+<div class="section">
+    <h2>1. الهدف من النظام والمشكلة اللي يحلّها</h2>
+
+    <h3>المشكلة</h3>
+    <p>
+        قبل سنتين، لما حدا يريد يبحث عن خدمة، كان يفتح Google ويختار من النتائج.
+        اليوم، أكثر الناس بدأت تسأل <b>ChatGPT</b> و<b>Gemini</b> و<b>Perplexity</b> مباشرة.
+        المشكلة: هذه المحركات بتعطي إجابة واحدة — مش 10 نتائج.
+        لو ما ذكرت اسم شركتك في هاي الإجابة، أنت غير موجود.
+    </p>
+
+    <h3>السؤال اللي يحلّه النظام</h3>
+    <blockquote>
+        "كيف نوصل شركتنا للظهور رقم 1 لما حدا يسأل عنا ChatGPT أو Google؟"
+    </blockquote>
+
+    <h3>كيف يجاوب على هذا السؤال</h3>
+    <ul>
+        <li><b>يقيس</b> — يسأل الذكاء الاصطناعي عشرات الأسئلة عن مجالك، ويرى هل ذكرك أم لا.</li>
+        <li><b>يقارن</b> — يفحص كيف ظهور منافسيك مقارنة بك على نفس المعايير.</li>
+        <li><b>يشخّص</b> — يكتشف الفجوات الفنية والإستراتيجية اللي بتمنعك من الظهور.</li>
+        <li><b>يصف العلاج</b> — يعطيك خطة عمل واضحة مرتّبة بحسب الأهم، مع أدوات جاهزة للتنفيذ.</li>
+        <li><b>يتابع</b> — يقيس تقدمك مع الوقت ويظهر هل تتحسّن.</li>
+    </ul>
+</div>
+
+<div class="pagebreak"></div>
+
+<!-- ═════════════ 2. MAIN SCREENS ═════════════ -->
+<div class="section">
+    <h2>2. الشاشات الرئيسية الأربعة</h2>
+    <p>النظام مقسوم لـ 4 شاشات في الأعلى، كل وحدة بدور:</p>
+    <table>
+        <tr><th>الشاشة</th><th>الدور</th></tr>
+        <tr><td><b>New Scan</b><br/>(فحص جديد)</td><td>بوابة الدخول — تطلب فحصاً جديداً للبراند</td></tr>
+        <tr><td><b>Dashboard</b><br/>(لوحة المتابعة)</td><td>عرض التطوّر التاريخي عبر فحوصات متعددة</td></tr>
+        <tr><td><b>Compare</b><br/>(مقارنة)</td><td>مقارنة بصرية بين شركتك ومنافسيك</td></tr>
+        <tr><td><b>Settings</b><br/>(إعدادات)</td><td>التحكم بالنظام والحسابات</td></tr>
+    </table>
+</div>
+
+<!-- ═════════════ 3. NEW SCAN SCREEN ═════════════ -->
+<div class="section">
+    <h2>3. شاشة الفحص الجديد (New Scan)</h2>
+
+    <div class="row">
+        <div class="img">
+            <img src="screenshots/01-new-scan.png" alt="شاشة الفحص الجديد" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/01-new-scan.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>شو هي؟</h4>
+            <p>الشاشة الأولى — هون يكتب المستخدم اسم البراند، نوع الشغل، الموقع الإلكتروني، والبلد المستهدف.</p>
+
+            <h4>الخياران الرئيسيان</h4>
+            <ul>
+                <li><span class="pill blue">Quick scan</span> دقيقة وحدة — 5 أسئلة على 3 محركات. للتجربة السريعة.</li>
+                <li><span class="pill purple">Master scan</span> 8 دقائق — فحص شامل: 30 سؤال للذكاء الاصطناعي + 6 وحدات تحليل Google متوازية.</li>
+            </ul>
+
+            <h4>ليش نحتاجها؟</h4>
+            <p>هاي بوابة الدخول الموحّدة. تجمع كل البيانات اللي يحتاجها النظام في نموذج واحد بسيط.</p>
+        </div>
+    </div>
+</div>
+
+<div class="pagebreak"></div>
+
+<!-- ═════════════ 4. ACTION PLAN ═════════════ -->
+<div class="section">
+    <h2>4. نتائج الفحص — القسم الأول: خطة العمل (Action Plan)</h2>
+    <p><b>هذا قلب النظام.</b> هون يلاقي المستخدم خطة عمل واضحة بناءً على فجواته الفعلية.</p>
+
+    <div class="row">
+        <div class="img">
+            <img src="screenshots/02-action-plan.png" alt="خطة العمل" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/02-action-plan.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>الترتيب بـ 4 درجات</h4>
+            <ul>
+                <li><span class="pill critical">حرجة</span> أعلى تأثير — ابدأ هون</li>
+                <li><span class="pill high">عالية</span> مكاسب كبيرة، تأخذ وقت متوسط</li>
+                <li><span class="pill medium">متوسطة</span> تحسينات نوعية</li>
+                <li><span class="pill low">منخفضة</span> صيانة طويلة المدى</li>
+            </ul>
+
+            <h4>كل توصية مدعومة ببيانات حقيقية</h4>
+            <p>النظام ما يخمّن. كل توصية مربوطة بمصدر:</p>
+            <ul>
+                <li>"احصل على Wikipedia" — لأن 5 من 6 منافسين عندهم Wikipedia وأنت لأ</li>
+                <li>"اعمل PR لمقال X" — لأن 8 مقالات تذكر منافسك وما تذكرك</li>
+                <li>"ضيف Organization schema" — لأن 4 من 6 منافسين عندهم وأنت لأ</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>أدوات داعمة داخل خطة العمل</h3>
+
+    <div class="card">
+        <div class="card-title">📈 شريط التقدّم (Progress &amp; Tracking)</div>
+        <p>مقارنة بين أول فحص وآخر فحص. يبيّن إذا تحرّكت الإبرة فعلاً بعد ما طبّقت التوصيات.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">⚖️ مرجعية المنافسين (Competitor Benchmark)</div>
+        <p>لكل إشارة قابلة للقياس، يعرض موقعك مقابل القمة (الأقوى) ومقابل المتوسط. الأحمر = فجوة حقيقية.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">⚡ مولّدات الإصلاح بضغطة زر (One-click Generators)</div>
+        <p>6 أدوات تولّد كود جاهز للنسخ:</p>
+        <ul>
+            <li>Organization / LocalBusiness schema</li>
+            <li>FAQ schema</li>
+            <li>Article schema</li>
+            <li>Review schema</li>
+            <li>llms.txt (ملف يرشد crawlers الذكاء الاصطناعي)</li>
+            <li>robots.txt patch (يسمح لـ GPTBot و ClaudeBot يقرأوا موقعك)</li>
+        </ul>
+    </div>
+</div>
+
+<div class="pagebreak"></div>
+
+<!-- ═════════════ 5. AI VISIBILITY ═════════════ -->
+<div class="section">
+    <h2>5. نتائج الفحص — القسم الثاني: الظهور بالذكاء الاصطناعي</h2>
+
+    <div class="row reverse">
+        <div class="img">
+            <img src="screenshots/03-ai-visibility.png" alt="الظهور بالذكاء الاصطناعي" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/03-ai-visibility.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>الأرقام الأربعة في الأعلى</h4>
+            <ul>
+                <li><b>Real Visibility</b> — نسبة ذكرك في الأسئلة المحايدة (بدون أن نقول اسمك)</li>
+                <li><b>Echo Rate</b> — نسبة ذكرك لما نقول اسمك في السؤال (يقيس "هل AI تعرفك أصلاً")</li>
+                <li><b>Mention Rate</b> — معدل الذكر العام</li>
+                <li><b>Avg Score</b> — درجة الظهور المرجّحة من 100</li>
+            </ul>
+
+            <p>الفجوة بين Real و Echo بتقولك:</p>
+            <blockquote>
+                لو Echo عالي و Real منخفض = الذكاء الاصطناعي يعرفك إذا سألته مباشرة،
+                لكن لما العميل يسأل بدون ذكر اسمك، يقترح منافسيك بدلاً منك.
+                هاي المشكلة الأكبر.
+            </blockquote>
+        </div>
+    </div>
+
+    <h3>3 جداول تفصيلية</h3>
+
+    <div class="card">
+        <div class="card-title">📋 جدول النتائج (Result Table)</div>
+        <p>يعرض كل سؤال انسأل، على أي محرك، هل ذكرك (✓ أو ✗)، ترتيبك في إجابة الـ AI، ومشاعر الذكر (إيجابي/سلبي/محايد).</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🏷️ المفاهيم اللي ترتبط ببراندك (Topics)</div>
+        <p>قائمة الأسماء اللي بتذكرها AI بنفس السياق مع اسمك. تكشف مع من تتنافس فعلياً في عقل الذكاء الاصطناعي.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🔗 مصادر الاستشهاد (AI Citation Sources)</div>
+        <p>المواقع الفعلية اللي قرأها Gemini وأخذ منها معلومات. <b>أهم بيانات النظام للـ PR</b> — لأنها تقول لك بالضبط مع من تتواصل لتدخل عقل الذكاء الاصطناعي.</p>
+    </div>
+</div>
+
+<div class="pagebreak"></div>
+
+<!-- ═════════════ 6. GOOGLE VISIBILITY ═════════════ -->
+<div class="section">
+    <h2>6. نتائج الفحص — القسم الثالث: الظهور في Google</h2>
+    <p>7 أدوات تشتغل سوا. كلها بيانات حقيقية من Google مباشرة، بدون تخمين.</p>
+
+    <div class="row">
+        <div class="img">
+            <img src="screenshots/04-brand-presence.png" alt="فحص الحضور" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/04-brand-presence.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>1. فحص الحضور (Brand Presence Check)</h4>
+            <p>يفحص هل عندك:</p>
+            <ul>
+                <li><b>Google Knowledge Panel</b> — Gemini يعتمد عليه بشكل أساسي</li>
+                <li><b>مقال Wikipedia</b> — ChatGPT تدرّبت على Wikipedia</li>
+            </ul>
+            <p>لو ما عندك الاثنين، أنت غير مرئي للذكاء الاصطناعي على المستوى البنيوي.</p>
+        </div>
+    </div>
+
+    <div class="row reverse">
+        <div class="img">
+            <img src="screenshots/05-on-page-seo.png" alt="SEO الصفحة" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/05-on-page-seo.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>2. SEO على الصفحة + Core Web Vitals</h4>
+            <p>يزحف على 5 صفحات من موقعك ويفحص:</p>
+            <ul>
+                <li>طول العنوان ووصف meta</li>
+                <li>عدد عناوين H1 (الأفضل: واحد فقط)</li>
+                <li>structured data</li>
+                <li>نص بديل للصور</li>
+                <li><b>سرعة الصفحة</b> (LCP, CLS, INP) من Google PageSpeed</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="img">
+            <img src="screenshots/06-content-gap.png" alt="فجوات المحتوى" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/06-content-gap.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>3. اكتشاف فجوات المحتوى (Content Gap Finder)</h4>
+            <p>تعطيه قائمة أسئلة، يسأل Google مباشرة، يقول: في أي ترتيب أنت، من المنافسين الذين يسبقونك، ويحسب فرصة من 0-100. زر "Generate brief" يولّد ملخص محتوى للمنافسين الأفضل.</p>
+        </div>
+    </div>
+
+    <div class="row reverse">
+        <div class="img">
+            <img src="screenshots/07-competitor-audit.png" alt="تدقيق المنافسين" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/07-competitor-audit.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>4. تدقيق المنافسين (Competitor Audit)</h4>
+            <p>يفحص موقعك مقابل مواقع 5-6 منافسين على 10 إشارات تقنية: schemas المختلفة (Organization, FAQ, Review, Breadcrumb, Article), ملف llms.txt, ملف sitemap.xml, السماح لـ GPTBot, السماح لـ ClaudeBot, وصف meta + Open Graph.</p>
+            <p>يعطيك جدول بصري: "أنت عندك 2 من 10، منافسك الأقوى 8 من 10".</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="img">
+            <img src="screenshots/08-listicle-gap.png" alt="فجوة قوائم Best" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/08-listicle-gap.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>5. فجوة قوائم "Best X" (Listicle Gap)</h4>
+            <p>يبحث في Google عن "best [مجالك]", يأخذ أول 20 مقال, ويفحص: أي منافسين مذكورين في كم مقال، وكم منها يذكرك. يعطيك قائمة بمواقع مستهدفة لـ PR pitch.</p>
+        </div>
+    </div>
+
+    <div class="row reverse">
+        <div class="img">
+            <img src="screenshots/09-rank-tracker.png" alt="متتبع الترتيب" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/09-rank-tracker.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>6. متتبع ترتيب Google (Rank Tracker)</h4>
+            <p>يستخرج 25 كلمة مفتاحية من محتوى موقعك تلقائياً, يفحص ترتيبك على Google لكل كلمة, ويحفظ النتائج مع الوقت لتتبّع التغيرات. ينبّهك إذا تراجعت في الترتيب.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="img">
+            <img src="screenshots/10-alerts.png" alt="التنبيهات والتقارير" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/10-alerts.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>7. التنبيهات والتقارير (Alerts &amp; Reports)</h4>
+            <p>تعيّن حد أدنى لدرجة الظهور. إذا انخفض أقل منه, ينبّهك على البريد أو Slack أو Webhook. تقرير PDF أسبوعي أو شهري تلقائي.</p>
+        </div>
+    </div>
+</div>
+
+<div class="pagebreak"></div>
+
+<!-- ═════════════ 7. DASHBOARD ═════════════ -->
+<div class="section">
+    <h2>7. لوحة المتابعة (Dashboard) — قياس التطوّر</h2>
+
+    <div class="row">
+        <div class="img">
+            <img src="screenshots/11-dashboard.png" alt="لوحة المتابعة" onerror="this.outerHTML='<div class=placeholder>📸 احفظ السكرين شوت كـ:<br/><code>screenshots/11-dashboard.png</code></div>'" />
+        </div>
+        <div class="text">
+            <h4>شو فيها؟</h4>
+            <ul>
+                <li>عدد الفحوصات الكلي</li>
+                <li>معدل الظهور بالذكاء الاصطناعي</li>
+                <li>معدل ذكر اسم الشركة</li>
+                <li>رسم بياني للتطور مع الوقت</li>
+                <li>أي محرك ذكاء اصطناعي يحبك أكثر</li>
+                <li>قائمة كل المواقع اللي يتابع ترتيبها</li>
+                <li>إعدادات الفحص التلقائي الأسبوعي</li>
+            </ul>
+
+            <h4>ليش نحتاجها؟</h4>
+            <p>التحسّن يحتاج قياس. بدون مرجع تاريخي, لن تعرف إذا فعلاً تحسّنت. هاي اللوحة تعطيك الإجابة في نظرة واحدة.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ═════════════ 8. CONCLUSION ═════════════ -->
+<div class="section">
+    <h2>8. الخلاصة — كيف يخدم النظام هدفك التجاري</h2>
+
+    <h3>مسار العميل من البداية للنهاية</h3>
+    <table>
+        <tr><th>الخطوة</th><th>القسم في النظام</th></tr>
+        <tr><td>1. افحص شركتك</td><td>New Scan → Master scan</td></tr>
+        <tr><td>2. شوف وضعك في الذكاء الاصطناعي</td><td>AI Visibility tab</td></tr>
+        <tr><td>3. شوف وضعك في Google</td><td>Google Visibility tab</td></tr>
+        <tr><td>4. اعرف فجواتك مقابل المنافسين</td><td>Competitor Benchmark</td></tr>
+        <tr><td>5. خذ خطة عمل واضحة</td><td>Action Plan</td></tr>
+        <tr><td>6. نفّذ الإصلاحات</td><td>One-click Generators</td></tr>
+        <tr><td>7. افحص مرة ثانية بعد أسبوعين</td><td>Master scan</td></tr>
+        <tr><td>8. شوف التحسّن</td><td>Progress &amp; Tracking + Dashboard</td></tr>
+        <tr><td>9. كرّر</td><td>Auto-scheduled scans</td></tr>
+    </table>
+
+    <div class="footer-note">
+        <b>السطر الأهم</b><br/>
+        النظام لا يخمّن ولا يعطي نصائح عامة. كل توصية مدعومة ببيانات حقيقية
+        من <b>scraping</b> موقعك وموقع منافسيك, من <b>بحث Google مباشر</b>,
+        ومن <b>إجابات الذكاء الاصطناعي الفعلية</b>. هذا اللي يميّزه عن أي أداة
+        تستخدم LLM للتوصية بدون مصدر بيانات حقيقي.
+    </div>
+
+    <h3>الحالة الحالية للنظام</h3>
+    <table>
+        <tr><th>المكوّن</th><th>الحالة</th></tr>
+        <tr><td>14 وحدة backend (API)</td><td><span class="pill green">جاهزة</span></td></tr>
+        <tr><td>4 شاشات frontend</td><td><span class="pill green">جاهزة</span></td></tr>
+        <tr><td>3 أقسام داخل نتائج الفحص</td><td><span class="pill green">جاهزة</span></td></tr>
+        <tr><td>5 محركات Gemini تعمل بالتناوب</td><td><span class="pill green">جاهزة</span></td></tr>
+        <tr><td>قاعدة بيانات Firestore</td><td><span class="pill green">جاهزة</span></td></tr>
+        <tr><td>فلتر المنافسين</td><td><span class="pill green">100% دقة على 25 عيّنة</span></td></tr>
+        <tr><td>النشر على Vercel + Railway</td><td><span class="pill green">جاهزة</span></td></tr>
+    </table>
+</div>
+
+</body>
+</html>

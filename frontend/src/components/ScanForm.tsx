@@ -120,7 +120,12 @@ export function ScanForm({ onScanComplete }: Props) {
         try {
             // Master mode = run full AI breadth (90 calls). Quick = 15 calls.
             const aiMode = mode === 'master' ? 'full' : 'quick';
-            const { scanId, brandId } = await api.createScan(brand.trim(), category.trim(), aiMode);
+            const { scanId, brandId } = await api.createScan(
+                brand.trim(),
+                category.trim(),
+                aiMode,
+                { domain: domain.trim() || undefined, country },
+            );
             setPhase('scanning');
 
             await new Promise<void>((resolve, reject) => {

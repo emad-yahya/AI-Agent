@@ -36,6 +36,9 @@ export interface Scan {
   brandId: string;
   status: ScanStatus;
   mode?: ScanMode;
+  // Stored at create time so any device can rebuild the full scan view.
+  domain?: string | null;
+  country?: string | null;
   createdAt: firestore.Timestamp;
   completedAt?: firestore.Timestamp;
   recommendations?: Recommendation[];

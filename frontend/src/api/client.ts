@@ -49,7 +49,14 @@ export interface ScanResult {
 }
 
 export interface ScanResponse {
-  scan: { id: string; brandId: string; status: string };
+  scan: {
+    id: string;
+    brandId: string;
+    status: string;
+    mode?: 'quick' | 'full';
+    domain?: string | null;
+    country?: string | null;
+  };
   results: ScanResult[];
   stats: {
     total: number;
@@ -727,11 +734,14 @@ export const api = {
     brand: string,
     category: string,
     mode: 'quick' | 'full' = 'quick',
+    opts: { domain?: string; country?: string } = {},
   ) => {
     const res = await http.post<CreateScanResponse>("/scans", {
       brand,
       category,
       mode,
+      domain: opts.domain,
+      country: opts.country,
     });
     return res.data;
   },

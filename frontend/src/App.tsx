@@ -35,11 +35,36 @@ import {
 } from './lib/masterOrchestrator';
 import {
     Eye, ScanSearch, LayoutDashboard, GitCompareArrows, Loader2,
-    Sparkles, Code, FileText, Bot, Rocket, Settings, Globe2,
+    Sparkles, Code, FileText, Bot, Rocket, Settings, Globe2, MessageCircle,
 } from 'lucide-react';
 import { SystemHealthPanel } from './components/SystemHealthPanel';
 
 type Tab = 'scan' | 'dashboard' | 'compare' | 'settings';
+
+// Owner / contact branding — appears on every tab.
+const OWNER_NAME = 'Emad Yahya';
+const OWNER_WA_NUMBER = '971566392647';
+const OWNER_WA_LINK = `https://wa.me/${OWNER_WA_NUMBER}?text=${encodeURIComponent(
+    'مرحباً Emad، شفت AI Visibility Tracker تبعك وحبيت أعرف أكتر عن خدماتك',
+)}`;
+
+function PoweredByBadge({ size = 'sm' }: { size?: 'sm' | 'xs' }) {
+    const cls = size === 'xs'
+        ? 'text-[10px] px-2 py-0.5 gap-1'
+        : 'text-[11px] px-2.5 py-1 gap-1.5';
+    return (
+        <a
+            href={OWNER_WA_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Contact ${OWNER_NAME} on WhatsApp · +${OWNER_WA_NUMBER}`}
+            className={`inline-flex items-center rounded-full bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-700 font-semibold ring-1 ring-emerald-200 transition shadow-sm ${cls}`}
+        >
+            <MessageCircle className={size === 'xs' ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
+            by {OWNER_NAME}
+        </a>
+    );
+}
 
 const TABS: ReadonlyArray<{ key: Tab; label: string; Icon: typeof ScanSearch; gradient: string }> = [
     { key: 'scan', label: 'New scan', Icon: ScanSearch, gradient: 'from-indigo-500 to-fuchsia-500' },
@@ -105,15 +130,55 @@ export default function App() {
     const [orchestration, setOrchestration] = useState<MasterOrchestrationState>(INITIAL_STATE);
     const { loading, run } = useAsync<ScanResponse>();
 
-    // Restore previous scan view on first mount so refresh / tab switch doesn't wipe results.
+    // Restore previous scan view on first mount.
+    // 1. Paint cached copy from localStorage instantly (no flash).
+    // 2. Then fetch latest scan from server so any device sees the same state.
     useEffect(() => {
         const restored = loadPersistedScan();
-        if (!restored) return;
-        setScanResult(restored.result);
-        setScanMeta(restored.meta);
-        setLastScanBrandId(restored.brandId);
-        setOrchestration(restored.orchestration);
-        setScanSubTab(restored.subTab);
+        if (restored) {
+            setScanResult(restored.result);
+            setScanMeta(restored.meta);
+            setLastScanBrandId(restored.brandId);
+            setOrchestration(restored.orchestration);
+            setScanSubTab(restored.subTab);
+        }
+
+        (async () => {
+            try {
+                const brands = await api.getBrands();
+                if (brands.length === 0) return;
+
+                // Find brand with the most-recent done scan.
+                let bestBrand: typeof brands[number] | null = null;
+                let bestScan: import('./api/client').ScanHistoryItem | null = null;
+                for (const b of brands) {
+                    const scans = await api.listScans(b.name).catch(() => []);
+                    const done = scans.find((s) => s.status === 'done');
+                    if (done && (!bestScan || done.createdAt > bestScan.createdAt)) {
+                        bestBrand = b;
+                        bestScan = done;
+                    }
+                }
+                if (!bestBrand || !bestScan) return;
+
+                // Skip if cached scan already matches — avoids re-fetch flicker.
+                if (restored && restored.scanId === bestScan.scanId) return;
+
+                const result = await api.getScan(bestScan.brandId, bestScan.scanId);
+                setScanResult(result);
+                setLastScanBrandId(bestScan.brandId);
+                setScanMeta({
+                    brand: bestBrand.name,
+                    category: bestBrand.category ?? '',
+                    domain: result.scan.domain ?? '',
+                    country: result.scan.country ?? 'us',
+                    mode: result.scan.mode === 'full' ? 'master' : 'quick',
+                });
+                setOrchestration(INITIAL_STATE);
+            } catch {
+                // Silent — cached view (if any) stays visible.
+            }
+        })();
     }, []);
 
     // Persist on any meaningful change so a refresh keeps the same view.
@@ -189,8 +254,9 @@ export default function App() {
                             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-white glow-dot" />
                         </motion.div>
                         <div className="min-w-0">
-                            <h1 className="text-[15px] font-bold text-slate-900 tracking-tight">
+                            <h1 className="text-[15px] font-bold text-slate-900 tracking-tight flex items-center gap-2 flex-wrap">
                                 AI Visibility <span className="text-gradient">Tracker</span>
+                                <PoweredByBadge size="xs" />
                             </h1>
                             <p className="text-[11px] text-slate-500 -mt-0.5 truncate flex items-center gap-1">
                                 <Sparkles className="w-3 h-3 text-fuchsia-500" />
@@ -270,15 +336,15 @@ export default function App() {
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ duration: 0.3 }}
-                                        className="flex flex-col gap-6"
+                                        className="flex flex-col gap-10"
                                     >
                                         <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-indigo-50/60 ring-1 ring-indigo-100 text-[12px] text-slate-600">
                                             <div className="flex items-center gap-2 truncate">
                                                 <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                                                 <span className="truncate">
-                                                    Viewing scan for <b className="text-slate-900">{scanMeta.brand}</b>
+                                                    Viewing latest scan for <b className="text-slate-900">{scanMeta.brand}</b>
                                                     {' · '}
-                                                    <span className="text-slate-500">refresh-safe — saved locally</span>
+                                                    <span className="text-slate-500">auto-loaded from cloud — open from any device</span>
                                                 </span>
                                             </div>
                                             <button
@@ -400,12 +466,15 @@ export default function App() {
                 )}
 
                 {/* Footer */}
-                <footer className="mt-20 pt-6 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400">
+                <footer className="mt-20 pt-6 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400 flex-wrap gap-3">
                     <span className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 glow-dot" />
                         All systems operational
                     </span>
-                    <span>AI Visibility Tracker · v2</span>
+                    <div className="flex items-center gap-3">
+                        <PoweredByBadge size="sm" />
+                        <span>AI Visibility Tracker · v2 · © {new Date().getFullYear()} {OWNER_NAME}</span>
+                    </div>
                 </footer>
             </main>
         </div>

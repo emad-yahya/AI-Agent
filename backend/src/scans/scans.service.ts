@@ -55,6 +55,8 @@ export class ScansService {
       brandId,
       status: 'running',
       mode,
+      domain: dto.domain ?? null,
+      country: dto.country ?? null,
       createdAt: this.firebase.now(),
     } as Scan);
 
