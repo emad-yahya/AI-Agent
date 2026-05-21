@@ -6,6 +6,7 @@ import {
     Target, Zap, MessageCircle, ArrowRight, Gift,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { Robot3D } from './Robot3D';
 
 const OWNER_NAME = 'Emad Yahya';
 const OWNER_WA_NUMBER = '971566392647';
@@ -149,6 +150,9 @@ export function LoginPage() {
                 }}
             />
 
+            {/* Mobile robot — small, ambient, top right corner */}
+            <Robot3D className="md:hidden absolute z-[1] -right-12 top-4 w-[180px] opacity-40" />
+
             {/* ───────── Content ───────── */}
             <div className="relative z-10 min-h-screen grid lg:grid-cols-[1.1fr_1fr] gap-0">
                 {/* LEFT: hero */}
@@ -156,10 +160,12 @@ export function LoginPage() {
                     initial={{ opacity: 0, x: -16 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                    className="hidden lg:flex flex-col justify-between p-14 xl:p-20"
+                    className="hidden lg:flex flex-col justify-between p-14 xl:p-20 relative"
                 >
+                    {/* 3D Robot — ambient hero element, low opacity at lg, full at xl */}
+                    <Robot3D className="absolute z-0 right-[-60px] xl:right-0 top-1/2 -translate-y-1/2 w-[360px] xl:w-[460px] opacity-30 xl:opacity-70" />
                     {/* Brand mark */}
-                    <div className="flex items-center gap-3">
+                    <div className="relative z-10 flex items-center gap-3">
                         <div className="relative">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-pink-500 flex items-center justify-center shadow-[0_10px_32px_-8px_rgba(99,102,241,0.5)]">
                                 <Eye className="w-6 h-6 text-white" />
@@ -177,7 +183,7 @@ export function LoginPage() {
                     </div>
 
                     {/* Hero block */}
-                    <div className="max-w-xl py-10">
+                    <div className="relative z-10 max-w-xl py-10">
                         <motion.div
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -229,10 +235,8 @@ export function LoginPage() {
                         </div>
                     </div>
 
-                    {/* Bottom: copyright */}
-                    <div className="text-[11px] text-slate-400">
-                        © {new Date().getFullYear()} {OWNER_NAME}. All rights reserved.
-                    </div>
+                    {/* Spacer (copyright moved to centered footer) */}
+                    <div />
                 </motion.aside>
 
                 {/* RIGHT: form */}
@@ -392,12 +396,13 @@ export function LoginPage() {
                             </a>
                         </div>
 
-                        {/* Mobile copyright */}
-                        <div className="lg:hidden text-center text-[10px] text-slate-400">
-                            © {new Date().getFullYear()} {OWNER_NAME}. All rights reserved.
-                        </div>
                     </motion.div>
                 </main>
+            </div>
+
+            {/* ───── Centered copyright footer ───── */}
+            <div className="relative z-10 pb-6 pt-2 text-center text-[11px] text-slate-500">
+                © {new Date().getFullYear()} {OWNER_NAME}. All rights reserved.
             </div>
         </div>
     );
