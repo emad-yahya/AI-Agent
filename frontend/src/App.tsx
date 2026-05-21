@@ -126,14 +126,6 @@ export default function App() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => setOnboardingOpen(true)}
-                        className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold shadow-sm hover:opacity-90"
-                    >
-                        <Rocket className="w-3.5 h-3.5" />
-                        Quick Start
-                    </button>
-
                     {/* Segmented tabs */}
                     <nav className="flex gap-1 bg-white/60 rounded-2xl p-1.5 ring-1 ring-slate-200/60 shadow-[var(--shadow-soft)]">
                         {TABS.map(({ key, label, Icon, gradient }) => {
