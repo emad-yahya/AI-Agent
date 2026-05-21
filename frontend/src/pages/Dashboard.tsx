@@ -10,6 +10,7 @@ import { Activity, Target, Percent, AlertCircle, Inbox } from 'lucide-react';
 import { ScanHistory } from '../components/ScanHistory';
 import { ScheduledScansPanel } from '../components/ScheduledScansPanel';
 import { SeoSitesOverview } from '../components/SeoSitesOverview';
+import { BrandSeoTrend } from '../components/BrandSeoTrend';
 import { SectionIntro } from '../components/Hint';
 
 export function Dashboard() {
@@ -122,6 +123,7 @@ export function Dashboard() {
           })()}
 
           <VisibilityChart timeline={data.timeline} />
+          <BrandSeoTrend brand={selectedBrand} />
           <EngineBreakdown byEngine={data.byEngine} />
           <ScanHistory brand={selectedBrand} />
           <SeoSitesOverview />
