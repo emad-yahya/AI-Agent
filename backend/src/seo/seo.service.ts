@@ -308,10 +308,12 @@ export class SeoService {
           lastScanAt: this.firebase.now(),
         });
     } catch (err) {
-      this.logger.error(`Site scan ${scanId} failed`, err);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Site scan ${scanId} failed: ${msg}`, err);
       await scanRef.update({
         status: 'failed',
         completedAt: this.firebase.now(),
+        error: msg.slice(0, 500),
       });
     }
   }
