@@ -49,6 +49,7 @@ export function ScanForm({ onScanComplete }: Props) {
     const [existingBrands, setExistingBrands] = useState<Brand[]>([]);
     const [selectedBrandId, setSelectedBrandId] = useState<string>(''); // '' = new brand
     const [autofillLoading, setAutofillLoading] = useState(false);
+    const [editingDetails, setEditingDetails] = useState(true);
 
     useEffect(() => {
         api.getBrands().then(setExistingBrands).catch(() => setExistingBrands([]));
@@ -57,11 +58,12 @@ export function ScanForm({ onScanComplete }: Props) {
     const handleBrandPick = async (brandId: string) => {
         setSelectedBrandId(brandId);
         if (!brandId) {
-            // "+ New brand" — clear form
+            // "+ New brand" — clear form + open editor so user can fill it
             setBrand('');
             setCategory('');
             setDomain('');
             setCountry('us');
+            setEditingDetails(true);
             return;
         }
         const picked = existingBrands.find((b) => b.id === brandId);
@@ -81,6 +83,8 @@ export function ScanForm({ onScanComplete }: Props) {
             // no sites — leave domain blank
         } finally {
             setAutofillLoading(false);
+            // Collapse the form once auto-filled so the CTA is one click away.
+            setEditingDetails(false);
         }
     };
 
@@ -277,27 +281,51 @@ export function ScanForm({ onScanComplete }: Props) {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Field
-                            label="Brand name"
-                            value={brand}
-                            onChange={setBrand}
-                            placeholder="e.g. Platinum Square"
-                            disabled={isLoading}
-                            accent="from-indigo-500 to-fuchsia-500"
-                        />
-                        <Field
-                            label="Category"
-                            value={category}
-                            onChange={setCategory}
-                            placeholder="e.g. Dubai real estate broker"
-                            disabled={isLoading}
-                            accent="from-cyan-500 to-blue-600"
-                        />
-                    </div>
+                    {/* Pre-filled summary card when brand picked + collapsed */}
+                    {selectedBrandId && !editingDetails && (
+                        <div className="rounded-2xl bg-emerald-50/60 ring-1 ring-emerald-200 p-4 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="text-[12px] text-slate-700 flex-1 min-w-0">
+                                <div className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    Ready to scan <b>{brand}</b>
+                                </div>
+                                <div className="text-[11px] text-slate-500 truncate">
+                                    {category}{domain ? ` · ${domain}` : ''}{country ? ` · ${country.toUpperCase()}` : ''}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setEditingDetails(true)}
+                                disabled={isLoading}
+                                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2 shrink-0 disabled:opacity-50"
+                            >
+                                Edit details
+                            </button>
+                        </div>
+                    )}
+
+                    {(editingDetails || !selectedBrandId) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <Field
+                                label="Brand name"
+                                value={brand}
+                                onChange={setBrand}
+                                placeholder="e.g. Platinum Square"
+                                disabled={isLoading}
+                                accent="from-indigo-500 to-fuchsia-500"
+                            />
+                            <Field
+                                label="Category"
+                                value={category}
+                                onChange={setCategory}
+                                placeholder="e.g. Dubai real estate broker"
+                                disabled={isLoading}
+                                accent="from-cyan-500 to-blue-600"
+                            />
+                        </div>
+                    )}
 
                     <AnimatePresence>
-                        {mode === 'master' && (
+                        {mode === 'master' && (editingDetails || !selectedBrandId) && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
@@ -334,7 +362,7 @@ export function ScanForm({ onScanComplete }: Props) {
                     </AnimatePresence>
 
                     <AnimatePresence>
-                        {(suggestLoading || suggestions.length > 0) && (
+                        {(editingDetails || !selectedBrandId) && (suggestLoading || suggestions.length > 0) && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}

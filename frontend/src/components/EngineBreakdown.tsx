@@ -1,8 +1,4 @@
 // frontend/src/components/EngineBreakdown.tsx
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell,
-} from 'recharts';
 import { BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -59,40 +55,7 @@ export function EngineBreakdown({ byEngine }: Props) {
         <p className="text-xs text-slate-500 mt-1 ml-10">Average visibility score per AI engine</p>
       </div>
 
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 4, right: 8, bottom: 4, left: -20 }}>
-          <defs>
-            {data.map((entry) => (
-              <linearGradient key={entry.engine} id={`bar-${entry.engine}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={entry.color} stopOpacity={0.95} />
-                <stop offset="100%" stopColor={entry.color} stopOpacity={0.55} />
-              </linearGradient>
-            ))}
-          </defs>
-          <CartesianGrid strokeDasharray="3 6" stroke="#e2e8f0" vertical={false} />
-          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-          <Tooltip
-            contentStyle={{
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '12px',
-              boxShadow: '0 12px 32px -8px rgba(15, 23, 42, 0.18)',
-              background: 'rgba(255,255,255,0.96)',
-              backdropFilter: 'blur(8px)',
-            }}
-            cursor={{ fill: 'rgba(99,102,241,0.06)' }}
-            formatter={(value, name) => [value as number, name as string]}
-          />
-          <Bar dataKey="score" name="Avg score" radius={[10, 10, 0, 0]} maxBarSize={64}>
-            {data.map((entry) => (
-              <Cell key={entry.engine} fill={`url(#bar-${entry.engine})`} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-
-      <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {data.map((entry, i) => (
           <motion.div
             key={entry.engine}

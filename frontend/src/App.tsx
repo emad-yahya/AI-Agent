@@ -38,6 +38,8 @@ import {
     Sparkles, Code, FileText, Bot, Rocket, Settings, Globe2, MessageCircle,
 } from 'lucide-react';
 import { SystemHealthPanel } from './components/SystemHealthPanel';
+import { CollapsibleSection } from './components/CollapsibleSection';
+import { Building2, FileSearch, Search, Trophy, ListChecks, MapPin, Bell } from 'lucide-react';
 
 type Tab = 'scan' | 'dashboard' | 'compare' | 'settings';
 
@@ -364,7 +366,9 @@ export default function App() {
                                             <MasterScanProgress state={orchestration} />
                                         )}
 
-                                        <ScanSubTabs current={scanSubTab} onChange={setScanSubTab} />
+                                        <div className="sticky top-[68px] z-30 -mx-2 px-2 py-2 backdrop-blur-md bg-white/55 rounded-2xl">
+                                            <ScanSubTabs current={scanSubTab} onChange={setScanSubTab} />
+                                        </div>
 
                                         {scanSubTab === 'actions' && (
                                             <>
@@ -372,46 +376,137 @@ export default function App() {
                                                     stats={scanResult.stats}
                                                 />
                                                 <GeoActionsPanel brand={scanMeta.brand} />
-                                                <ProgressPanel brand={scanMeta.brand} />
-                                                <BenchmarkPanel brand={scanMeta.brand} />
-                                                <GeneratorToolbar onOpen={(k) => setGeneratorOpen(k)} brand={scanMeta.brand} />
+                                                <CollapsibleSection
+                                                    title="Progress & Tracking"
+                                                    subtitle="Completed actions and visibility delta over time"
+                                                    Icon={LayoutDashboard}
+                                                    iconGradient="from-cyan-500 to-blue-600"
+                                                >
+                                                    <ProgressPanel brand={scanMeta.brand} />
+                                                </CollapsibleSection>
+                                                <CollapsibleSection
+                                                    title="Competitor Benchmark"
+                                                    subtitle="How you compare to competitors on AI readiness"
+                                                    Icon={Trophy}
+                                                    iconGradient="from-amber-500 to-orange-500"
+                                                >
+                                                    <BenchmarkPanel brand={scanMeta.brand} />
+                                                </CollapsibleSection>
+                                                <CollapsibleSection
+                                                    title="One-click fix generators"
+                                                    subtitle="Local-business schema, FAQ schema, articles, robots.txt"
+                                                    Icon={Code}
+                                                    iconGradient="from-violet-500 to-fuchsia-500"
+                                                >
+                                                    <GeneratorToolbar onOpen={(k) => setGeneratorOpen(k)} brand={scanMeta.brand} />
+                                                </CollapsibleSection>
                                             </>
                                         )}
 
                                         {scanSubTab === 'ai' && (
                                             <>
                                                 <ResultTable results={scanResult.results} stats={scanResult.stats} />
-                                                <TopicsPanel results={scanResult.results} />
-                                                <CitationsPanel results={scanResult.results} brand={scanMeta.brand} />
+                                                <CollapsibleSection
+                                                    title="Topics & themes"
+                                                    subtitle="What concepts AI engines associate with your brand"
+                                                    Icon={Sparkles}
+                                                    iconGradient="from-violet-500 to-fuchsia-500"
+                                                >
+                                                    <TopicsPanel results={scanResult.results} />
+                                                </CollapsibleSection>
+                                                <CollapsibleSection
+                                                    title="Citations (sources AI engines cite)"
+                                                    subtitle="Domains the AI used to back its answer"
+                                                    Icon={FileText}
+                                                    iconGradient="from-emerald-500 to-teal-500"
+                                                >
+                                                    <CitationsPanel results={scanResult.results} brand={scanMeta.brand} />
+                                                </CollapsibleSection>
                                             </>
                                         )}
 
                                         {scanSubTab === 'google' && (
                                             <>
-                                                <BrandPresencePanel
-                                                    brand={scanMeta.brand}
-                                                    results={scanResult.results}
-                                                />
-                                                <OnPageSeoPanel brand={scanMeta.brand} domain={scanMeta.domain} />
-                                                <ContentGapPanel brand={scanMeta.brand} domain={scanMeta.domain} results={scanResult.results} />
-                                                <CompetitorAuditPanel
-                                                    brand={scanMeta.brand}
-                                                    results={scanResult.results}
-                                                />
-                                                <ListicleGapPanel
-                                                    brand={scanMeta.brand}
-                                                    category={scanMeta.category}
-                                                    results={scanResult.results}
-                                                />
-                                                {orchestration.seoSiteId && scanMeta.domain && (
-                                                    <SeoSiteSection
-                                                        siteId={orchestration.seoSiteId}
+                                                <CollapsibleSection
+                                                    title="Brand presence (Knowledge Panel + Wikipedia)"
+                                                    subtitle="Does Google know who you are?"
+                                                    Icon={Building2}
+                                                    iconGradient="from-blue-500 to-indigo-600"
+                                                    defaultOpen
+                                                >
+                                                    <BrandPresencePanel
                                                         brand={scanMeta.brand}
-                                                        domain={scanMeta.domain}
+                                                        results={scanResult.results}
                                                     />
+                                                </CollapsibleSection>
+
+                                                <CollapsibleSection
+                                                    title="On-page SEO + Core Web Vitals"
+                                                    subtitle="How well your site is technically optimized"
+                                                    Icon={FileSearch}
+                                                    iconGradient="from-emerald-500 to-teal-500"
+                                                >
+                                                    <OnPageSeoPanel brand={scanMeta.brand} domain={scanMeta.domain} />
+                                                </CollapsibleSection>
+
+                                                <CollapsibleSection
+                                                    title="Content gap + PAA"
+                                                    subtitle="Questions Google users ask that you don't answer"
+                                                    Icon={Search}
+                                                    iconGradient="from-violet-500 to-fuchsia-500"
+                                                >
+                                                    <ContentGapPanel brand={scanMeta.brand} domain={scanMeta.domain} results={scanResult.results} />
+                                                </CollapsibleSection>
+
+                                                <CollapsibleSection
+                                                    title="Competitor schema audit"
+                                                    subtitle="What structured data competitors use that you don't"
+                                                    Icon={Trophy}
+                                                    iconGradient="from-amber-500 to-orange-500"
+                                                >
+                                                    <CompetitorAuditPanel
+                                                        brand={scanMeta.brand}
+                                                        results={scanResult.results}
+                                                    />
+                                                </CollapsibleSection>
+
+                                                <CollapsibleSection
+                                                    title='Listicle gap ("Best X" lists)'
+                                                    subtitle="Top-10 articles your competitors appear in"
+                                                    Icon={ListChecks}
+                                                    iconGradient="from-rose-500 to-pink-600"
+                                                >
+                                                    <ListicleGapPanel
+                                                        brand={scanMeta.brand}
+                                                        category={scanMeta.category}
+                                                        results={scanResult.results}
+                                                    />
+                                                </CollapsibleSection>
+
+                                                {orchestration.seoSiteId && scanMeta.domain && (
+                                                    <CollapsibleSection
+                                                        title="Google rank tracker (Serper)"
+                                                        subtitle="Live keyword positions for your site"
+                                                        Icon={MapPin}
+                                                        iconGradient="from-cyan-500 to-blue-600"
+                                                    >
+                                                        <SeoSiteSection
+                                                            siteId={orchestration.seoSiteId}
+                                                            brand={scanMeta.brand}
+                                                            domain={scanMeta.domain}
+                                                        />
+                                                    </CollapsibleSection>
                                                 )}
+
                                                 {lastScanBrandId && (
-                                                    <AlertSettings brandId={lastScanBrandId} brandName={scanMeta.brand} />
+                                                    <CollapsibleSection
+                                                        title="Alert settings"
+                                                        subtitle="Email digests + anomaly alerts"
+                                                        Icon={Bell}
+                                                        iconGradient="from-slate-500 to-slate-700"
+                                                    >
+                                                        <AlertSettings brandId={lastScanBrandId} brandName={scanMeta.brand} />
+                                                    </CollapsibleSection>
                                                 )}
                                             </>
                                         )}

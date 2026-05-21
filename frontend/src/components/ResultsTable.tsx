@@ -46,13 +46,17 @@ const STAT_TIPS: Record<string, string> = {
     'Avg score': 'Quality score (0–100) for the answers that DID mention you. Combines ranking position + sentiment.',
     'Real visibility': 'Mention rate on UNBIASED prompts — questions that never name your brand. This is the metric that proves AI engines truly know you.',
     'Echo rate': 'Mention rate on BRAND-CUE prompts (e.g. "Besides {brand}…", "How is {brand}?"). The LLM is being prompted with your name, so a hit only means it can talk about you when asked, not that it surfaces you spontaneously.',
+    'Mention rate (combined)': 'Real + Echo combined. Use Real visibility for the truer signal.',
+    'Avg score (when mentioned)': 'Quality score (0–100) for answers that DID mention you. Combines ranking position + sentiment.',
 };
 
 const STAT_COLORS: Record<string, string> = {
     'Total calls': 'from-slate-500 to-slate-700',
     'Mentioned': 'from-blue-500 to-indigo-600',
     'Mention rate': 'from-emerald-500 to-teal-500',
+    'Mention rate (combined)': 'from-emerald-500 to-teal-500',
     'Avg score': 'from-violet-500 to-fuchsia-500',
+    'Avg score (when mentioned)': 'from-violet-500 to-fuchsia-500',
     'Real visibility': 'from-emerald-500 to-teal-500',
     'Echo rate': 'from-amber-500 to-orange-500',
 };
@@ -66,16 +70,32 @@ export function ResultTable({ results, stats }: Props) {
 
     const statRows = hasSplit
         ? [
-              { label: 'Real visibility', value: `${stats.realMentionRate ?? 0}%` },
-              { label: 'Echo rate', value: `${stats.echoMentionRate ?? 0}%` },
-              { label: 'Mention rate', value: `${stats.mentionRate}%` },
-              { label: 'Avg score', value: stats.avgScore },
+              {
+                  label: 'Real visibility',
+                  value: `${stats.realMentionRate ?? 0}%`,
+                  caption: `${stats.realMentioned ?? 0} of ${stats.realTotal ?? 0} unbiased prompts mentioned you`,
+              },
+              {
+                  label: 'Echo rate',
+                  value: `${stats.echoMentionRate ?? 0}%`,
+                  caption: `${stats.echoMentioned ?? 0} of ${stats.echoTotal ?? 0} brand-named prompts mentioned you`,
+              },
+              {
+                  label: 'Mention rate (combined)',
+                  value: `${stats.mentionRate}%`,
+                  caption: `${stats.mentioned} of ${stats.total} total prompts`,
+              },
+              {
+                  label: 'Avg score (when mentioned)',
+                  value: stats.avgScore,
+                  caption: `out of 100`,
+              },
           ]
         : [
-              { label: 'Total calls', value: stats.total },
-              { label: 'Mentioned', value: stats.mentioned },
-              { label: 'Mention rate', value: `${stats.mentionRate}%` },
-              { label: 'Avg score', value: stats.avgScore },
+              { label: 'Total calls', value: stats.total, caption: 'AI questions sent' },
+              { label: 'Mentioned', value: stats.mentioned, caption: 'answers naming you' },
+              { label: 'Mention rate', value: `${stats.mentionRate}%`, caption: 'of total answers' },
+              { label: 'Avg score', value: stats.avgScore, caption: 'out of 100' },
           ];
 
     return (
@@ -100,14 +120,18 @@ export function ResultTable({ results, stats }: Props) {
                         className="relative rounded-2xl border border-white/80 bg-white p-4 text-center overflow-hidden shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-card-hover)]"
                     >
                         <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${STAT_COLORS[s.label]}`} />
-                        <div className="text-[26px] font-bold tracking-tight bg-gradient-to-br bg-clip-text text-transparent leading-none mt-1"
-                             style={{ backgroundImage: `linear-gradient(135deg, var(--tw-gradient-stops))` }}>
+                        <div className="text-[26px] font-bold tracking-tight leading-none mt-1">
                             <span className={`bg-gradient-to-br ${STAT_COLORS[s.label]} bg-clip-text text-transparent`}>{s.value}</span>
                         </div>
-                        <div className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-semibold mt-2 flex items-center justify-center gap-1">
+                        <div className="text-[12px] text-slate-800 font-bold mt-2 flex items-center justify-center gap-1">
                             {s.label}
-                            <Hint text={STAT_TIPS[s.label]} />
+                            <Hint text={STAT_TIPS[s.label] ?? ''} />
                         </div>
+                        {s.caption && (
+                            <div className="text-[10px] text-slate-500 mt-1 leading-tight">
+                                {s.caption}
+                            </div>
+                        )}
                     </motion.div>
                 ))}
             </div>
