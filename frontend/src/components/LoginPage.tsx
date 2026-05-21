@@ -1,24 +1,47 @@
 // frontend/src/components/LoginPage.tsx
-import { useState, type FormEvent } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import {
     Eye, Lock, Mail, Loader2, ShieldCheck, Sparkles, BarChart3,
-    Target, Zap, MessageCircle, Globe2, CheckCircle2,
+    Target, Zap, MessageCircle, ArrowRight, Gift,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 
 const OWNER_NAME = 'Emad Yahya';
 const OWNER_WA_NUMBER = '971566392647';
-const OWNER_WA_LINK = `https://wa.me/${OWNER_WA_NUMBER}?text=${encodeURIComponent(
+const OWNER_WA_DEMO_LINK = `https://wa.me/${OWNER_WA_NUMBER}?text=${encodeURIComponent(
+    "Hi Emad, I'd like a free demo of AI Visibility Tracker. Can you set me up with a trial account?",
+)}`;
+const OWNER_WA_CONTACT_LINK = `https://wa.me/${OWNER_WA_NUMBER}?text=${encodeURIComponent(
     "Hi Emad, I saw your AI Visibility Tracker and I'm interested in learning more about your services.",
 )}`;
 
 const FEATURES = [
-    { icon: BarChart3, text: 'Track AI mentions across ChatGPT, Gemini & Perplexity' },
-    { icon: Target, text: 'Audit competitors, find content gaps, win the SERP' },
-    { icon: Zap, text: 'One-click Master scan: AI + 6 Google modules' },
-    { icon: ShieldCheck, text: 'Actionable playbooks with verify steps' },
+    {
+        icon: BarChart3,
+        title: 'Track AI mentions',
+        desc: 'See how often ChatGPT, Gemini & Perplexity recommend your brand.',
+    },
+    {
+        icon: Target,
+        title: 'Beat competitors',
+        desc: 'Audit their schemas, content gaps, and SERP positions side by side.',
+    },
+    {
+        icon: Zap,
+        title: 'One-click Master scan',
+        desc: 'AI engines + 6 Google modules running in parallel — done in minutes.',
+    },
 ];
+
+// Smooth mouse-following orb for the hero background.
+function useMouseSpring() {
+    const x = useMotionValue(0);
+    const y = useMotionValue(0);
+    const sx = useSpring(x, { stiffness: 50, damping: 20, mass: 1 });
+    const sy = useSpring(y, { stiffness: 50, damping: 20, mass: 1 });
+    return { x, y, sx, sy };
+}
 
 export function LoginPage() {
     const { login } = useAuth();
@@ -27,6 +50,25 @@ export function LoginPage() {
     const [showPw, setShowPw] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const { x, y, sx, sy } = useMouseSpring();
+
+    useEffect(() => {
+        function onMove(e: MouseEvent) {
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            x.set(e.clientX - rect.left);
+            y.set(e.clientY - rect.top);
+        }
+        window.addEventListener('mousemove', onMove);
+        return () => window.removeEventListener('mousemove', onMove);
+    }, [x, y]);
+
+    const orb1X = useTransform(sx, (v) => v - 250);
+    const orb1Y = useTransform(sy, (v) => v - 250);
+    const orb2X = useTransform(sx, (v) => v * -0.3 + 100);
+    const orb2Y = useTransform(sy, (v) => v * -0.3 + 100);
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
@@ -43,179 +85,231 @@ export function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen w-full relative overflow-hidden">
-            {/* Animated mesh background */}
-            <div className="app-mesh-bg" />
-            <div className="app-grain" />
+        <div ref={containerRef} className="min-h-screen w-full relative overflow-hidden bg-slate-50">
+            {/* ───────── Interactive background ───────── */}
+            {/* Base mesh gradient */}
+            <div
+                className="absolute inset-0 z-0"
+                style={{
+                    background:
+                        'radial-gradient(900px 700px at 15% -10%, rgba(99,102,241,0.18), transparent 60%),' +
+                        'radial-gradient(800px 600px at 90% 110%, rgba(236,72,153,0.16), transparent 60%),' +
+                        'radial-gradient(700px 600px at 50% 50%, rgba(168,85,247,0.10), transparent 65%),' +
+                        'linear-gradient(180deg, #f8f9ff 0%, #eef1fb 100%)',
+                }}
+            />
 
-            <div className="relative z-10 min-h-screen grid lg:grid-cols-2">
-                {/* ───── LEFT PANE: hero ───── */}
+            {/* Mouse-following orbs */}
+            <motion.div
+                className="absolute z-0 w-[500px] h-[500px] rounded-full pointer-events-none"
+                style={{
+                    x: orb1X,
+                    y: orb1Y,
+                    background:
+                        'radial-gradient(circle, rgba(99,102,241,0.25) 0%, rgba(168,85,247,0.12) 40%, transparent 70%)',
+                    filter: 'blur(40px)',
+                }}
+            />
+            <motion.div
+                className="absolute z-0 w-[400px] h-[400px] rounded-full pointer-events-none"
+                style={{
+                    x: orb2X,
+                    y: orb2Y,
+                    background:
+                        'radial-gradient(circle, rgba(236,72,153,0.22) 0%, rgba(6,182,212,0.10) 40%, transparent 70%)',
+                    filter: 'blur(50px)',
+                }}
+            />
+
+            {/* Floating decorative shapes */}
+            <motion.div
+                className="absolute top-[15%] right-[8%] w-3 h-3 rounded-full bg-indigo-400/40 z-0 hidden md:block"
+                animate={{ y: [0, -20, 0], opacity: [0.4, 0.8, 0.4] }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.div
+                className="absolute bottom-[20%] left-[10%] w-4 h-4 rounded-sm bg-fuchsia-400/30 z-0 hidden md:block"
+                animate={{ rotate: [0, 180, 360], y: [0, 15, 0] }}
+                transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.div
+                className="absolute top-[60%] right-[15%] w-2 h-2 rounded-full bg-cyan-400/50 z-0 hidden md:block"
+                animate={{ y: [0, -30, 0], opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+            />
+
+            {/* Subtle grid overlay */}
+            <div
+                className="absolute inset-0 z-0 opacity-[0.025] pointer-events-none"
+                style={{
+                    backgroundImage:
+                        'linear-gradient(rgba(15,23,42,1) 1px, transparent 1px),' +
+                        'linear-gradient(90deg, rgba(15,23,42,1) 1px, transparent 1px)',
+                    backgroundSize: '40px 40px',
+                }}
+            />
+
+            {/* ───────── Content ───────── */}
+            <div className="relative z-10 min-h-screen grid lg:grid-cols-[1.1fr_1fr] gap-0">
+                {/* LEFT: hero */}
                 <motion.aside
                     initial={{ opacity: 0, x: -16 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                    className="hidden lg:flex flex-col justify-between p-12 xl:p-16 relative"
+                    className="hidden lg:flex flex-col justify-between p-14 xl:p-20"
                 >
-                    {/* Logo + product name */}
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-pink-500 flex items-center justify-center shadow-[var(--shadow-glow-brand)]">
-                                    <Eye className="w-6 h-6 text-white" />
-                                </div>
-                                <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white glow-dot" />
+                    {/* Brand mark */}
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-pink-500 flex items-center justify-center shadow-[0_10px_32px_-8px_rgba(99,102,241,0.5)]">
+                                <Eye className="w-6 h-6 text-white" />
                             </div>
-                            <div>
-                                <div className="text-base font-bold text-slate-900 tracking-tight">
-                                    AI Visibility Tracker
-                                </div>
-                                <div className="text-[11px] text-slate-500 font-medium">
-                                    Win the AI search era
-                                </div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white glow-dot" />
+                        </div>
+                        <div>
+                            <div className="text-base font-bold text-slate-900 tracking-tight">
+                                AI Visibility Tracker
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-medium">
+                                Win the AI search era
                             </div>
                         </div>
                     </div>
 
-                    {/* Hero copy */}
-                    <div className="max-w-lg">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 backdrop-blur ring-1 ring-indigo-100 text-[11px] font-semibold text-indigo-700 mb-5">
+                    {/* Hero block */}
+                    <div className="max-w-xl py-10">
+                        <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1, duration: 0.5 }}
+                            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 backdrop-blur ring-1 ring-indigo-100 text-[11px] font-semibold text-indigo-700 mb-8 shadow-sm"
+                        >
                             <Sparkles className="w-3 h-3" />
                             Built for B2B SaaS that want to rank in AI
-                        </div>
-                        <h1 className="text-4xl xl:text-5xl font-bold tracking-tight text-slate-900 leading-[1.05]">
-                            Reach <span className="text-gradient">#1</span> in
+                        </motion.div>
+
+                        <h1 className="text-5xl xl:text-6xl font-bold tracking-tight text-slate-900 leading-[1.04]">
+                            Reach{' '}
+                            <span className="text-gradient">#1</span>
                             <br />
-                            ChatGPT, Gemini
+                            in ChatGPT,
                             <br />
-                            and Google.
+                            Gemini & Google.
                         </h1>
-                        <p className="mt-5 text-base text-slate-600 leading-relaxed">
+
+                        <p className="mt-8 text-lg text-slate-600 leading-relaxed max-w-md">
                             Audit your brand's presence in AI answers, compare
-                            against competitors, and follow data-driven playbooks
-                            that move the needle.
+                            against competitors, and follow playbooks that move
+                            the needle.
                         </p>
 
-                        {/* Feature checklist */}
-                        <ul className="mt-7 space-y-2.5">
+                        {/* Features with breathing room */}
+                        <div className="mt-12 space-y-6">
                             {FEATURES.map((f, i) => (
-                                <motion.li
+                                <motion.div
                                     key={i}
-                                    initial={{ opacity: 0, x: -8 }}
+                                    initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.2 + i * 0.08, duration: 0.4 }}
-                                    className="flex items-center gap-3 text-sm text-slate-700"
+                                    transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
+                                    className="flex items-start gap-4"
                                 >
-                                    <span className="w-7 h-7 rounded-lg bg-white shadow-sm ring-1 ring-slate-200 flex items-center justify-center shrink-0">
-                                        <f.icon className="w-3.5 h-3.5 text-indigo-600" />
-                                    </span>
-                                    <span>{f.text}</span>
-                                </motion.li>
+                                    <div className="w-10 h-10 rounded-xl bg-white shadow-sm ring-1 ring-slate-200 flex items-center justify-center shrink-0">
+                                        <f.icon className="w-4 h-4 text-indigo-600" />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-bold text-slate-900">
+                                            {f.title}
+                                        </div>
+                                        <div className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+                                            {f.desc}
+                                        </div>
+                                    </div>
+                                </motion.div>
                             ))}
-                        </ul>
+                        </div>
                     </div>
 
-                    {/* Owner card */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5, duration: 0.5 }}
-                        className="glass rounded-2xl p-4 flex items-center gap-4"
-                    >
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-bold text-base shadow-md">
-                            EY
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="text-sm font-bold text-slate-900">
-                                Built by {OWNER_NAME}
-                            </div>
-                            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
-                                <Globe2 className="w-3 h-3" />
-                                Dubai · GEO/SEO architect
-                            </div>
-                        </div>
-                        <a
-                            href={OWNER_WA_LINK}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold shadow-sm transition"
-                        >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            WhatsApp
-                        </a>
-                    </motion.div>
+                    {/* Bottom: copyright */}
+                    <div className="text-[11px] text-slate-400">
+                        © {new Date().getFullYear()} {OWNER_NAME}. All rights reserved.
+                    </div>
                 </motion.aside>
 
-                {/* ───── RIGHT PANE: form ───── */}
+                {/* RIGHT: form */}
                 <main className="flex flex-col justify-center items-center px-6 py-12 lg:py-8">
-                    {/* Mobile logo (visible only when left pane hidden) */}
-                    <div className="lg:hidden mb-8 flex items-center gap-3">
+                    {/* Mobile brand mark */}
+                    <div className="lg:hidden mb-10 flex items-center gap-3">
                         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-pink-500 flex items-center justify-center shadow-md">
                             <Eye className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <div className="text-sm font-bold text-slate-900">AI Visibility Tracker</div>
-                            <div className="text-[10px] text-slate-500">Win the AI search era</div>
+                            <div className="text-sm font-bold text-slate-900">
+                                AI Visibility Tracker
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                                Win the AI search era
+                            </div>
                         </div>
                     </div>
 
                     <motion.div
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                        className="w-full max-w-md"
+                        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                        className="w-full max-w-md space-y-6"
                     >
-                        {/* Form card with animated gradient border */}
-                        <div className="gradient-border rounded-[var(--radius-card)] glass-strong p-7">
-                            <div className="text-center mb-6">
-                                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 shadow-[var(--shadow-glow-brand)] mb-4">
+                        {/* Form card */}
+                        <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_60px_-15px_rgba(15,23,42,0.15)] ring-1 ring-white/80 p-8 md:p-10">
+                            <div className="mb-8">
+                                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 shadow-[0_10px_32px_-8px_rgba(99,102,241,0.5)] mb-5">
                                     <ShieldCheck className="w-5 h-5 text-white" />
                                 </div>
                                 <h2 className="text-2xl font-bold tracking-tight text-slate-900">
                                     Welcome back
                                 </h2>
-                                <p className="text-sm text-slate-500 mt-1">
+                                <p className="text-sm text-slate-500 mt-1.5">
                                     Sign in to access your dashboard
                                 </p>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-4">
+                            <form onSubmit={handleSubmit} className="space-y-5">
                                 <div>
-                                    <label className="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                                    <label className="block text-[11px] font-bold text-slate-700 mb-2 uppercase tracking-wider">
                                         Email
                                     </label>
                                     <div className="relative group">
-                                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                                         <input
                                             type="email"
                                             autoComplete="email"
                                             required
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full pl-11 pr-3 py-3 rounded-[var(--radius-control)] border border-slate-200 bg-white/80 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-sm transition placeholder:text-slate-400"
+                                            className="w-full pl-11 pr-3 py-3.5 rounded-xl border border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-sm transition placeholder:text-slate-400"
                                             placeholder="you@example.com"
                                         />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                                    <label className="block text-[11px] font-bold text-slate-700 mb-2 uppercase tracking-wider">
                                         Password
                                     </label>
                                     <div className="relative group">
-                                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                                         <input
                                             type={showPw ? 'text' : 'password'}
                                             autoComplete="current-password"
                                             required
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full pl-11 pr-16 py-3 rounded-[var(--radius-control)] border border-slate-200 bg-white/80 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-sm transition placeholder:text-slate-400"
+                                            className="w-full pl-11 pr-16 py-3.5 rounded-xl border border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-sm transition placeholder:text-slate-400"
                                             placeholder="••••••••"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPw((s) => !s)}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-500 hover:text-indigo-600 px-2.5 py-1.5 rounded-md hover:bg-slate-100 transition"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-500 hover:text-indigo-600 px-3 py-1.5 rounded-md hover:bg-slate-100 transition"
                                         >
                                             {showPw ? 'Hide' : 'Show'}
                                         </button>
@@ -226,7 +320,7 @@ export function LoginPage() {
                                     <motion.div
                                         initial={{ opacity: 0, y: -4 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 flex items-start gap-2"
+                                        className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3.5 py-3 flex items-start gap-2"
                                     >
                                         <span className="mt-0.5">⚠</span>
                                         <span>{error}</span>
@@ -238,7 +332,7 @@ export function LoginPage() {
                                     disabled={submitting}
                                     whileHover={{ y: -1 }}
                                     whileTap={{ y: 0 }}
-                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-control)] bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 hover:from-indigo-700 hover:via-fuchsia-700 hover:to-pink-700 text-white font-semibold text-sm shadow-[var(--shadow-glow-brand)] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 hover:shadow-[0_15px_35px_-10px_rgba(168,85,247,0.6)] text-white font-semibold text-sm shadow-[0_10px_24px_-8px_rgba(99,102,241,0.45)] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                                 >
                                     {submitting ? (
                                         <>
@@ -248,63 +342,59 @@ export function LoginPage() {
                                     ) : (
                                         <>
                                             <ShieldCheck className="w-4 h-4" />
-                                            Sign in securely
+                                            Sign in
                                         </>
                                     )}
                                 </motion.button>
                             </form>
+                        </div>
 
-                            {/* Trust row */}
-                            <div className="mt-5 pt-5 border-t border-slate-200/70 grid grid-cols-3 gap-2 text-center">
-                                <div className="text-[10px] text-slate-500 flex flex-col items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                                    JWT secured
+                        {/* Demo CTA card */}
+                        <motion.a
+                            href={OWNER_WA_DEMO_LINK}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            whileHover={{ y: -2 }}
+                            className="block bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-5 ring-1 ring-emerald-200 hover:ring-emerald-400 transition-all group"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shrink-0">
+                                    <Gift className="w-5 h-5 text-white" />
                                 </div>
-                                <div className="text-[10px] text-slate-500 flex flex-col items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                                    bcrypt hashed
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                        No account? Get a free demo
+                                    </div>
+                                    <div className="text-[11px] text-slate-600 mt-0.5">
+                                        WhatsApp the owner — full trial within minutes.
+                                    </div>
                                 </div>
-                                <div className="text-[10px] text-slate-500 flex flex-col items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                                    Invite only
+                                <div className="flex items-center gap-1.5 text-emerald-700 font-semibold text-xs shrink-0">
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                                 </div>
                             </div>
-                        </div>
+                        </motion.a>
 
-                        {/* Footer: owner badge + copyright */}
-                        <div className="mt-6 flex flex-col items-center gap-3">
+                        {/* Powered by + WhatsApp */}
+                        <div className="flex items-center justify-center">
                             <a
-                                href={OWNER_WA_LINK}
+                                href={OWNER_WA_CONTACT_LINK}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title={`Contact ${OWNER_NAME} on WhatsApp · +${OWNER_WA_NUMBER}`}
-                                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 backdrop-blur ring-1 ring-emerald-200 hover:ring-emerald-400 hover:bg-emerald-50 text-emerald-700 text-[11px] font-semibold transition shadow-sm"
+                                title={`Contact ${OWNER_NAME} on WhatsApp`}
+                                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/70 backdrop-blur ring-1 ring-slate-200 hover:ring-emerald-300 hover:bg-white text-slate-600 hover:text-emerald-700 text-[11px] font-semibold transition"
                             >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 glow-dot" />
-                                <MessageCircle className="w-3 h-3" />
                                 Powered by {OWNER_NAME}
-                                <span className="text-emerald-500">·</span>
-                                <span className="font-mono">+{OWNER_WA_NUMBER}</span>
+                                <span className="text-slate-300">·</span>
+                                <span className="font-mono text-slate-500">+{OWNER_WA_NUMBER}</span>
                             </a>
-                            <p className="text-[10px] text-slate-400 text-center leading-relaxed max-w-sm">
-                                © {new Date().getFullYear()} {OWNER_NAME}. All rights reserved.
-                                <br />
-                                Unauthorized use, copy, or redistribution is prohibited.
-                            </p>
                         </div>
 
-                        {/* Mobile-only: short value prop */}
-                        <div className="lg:hidden mt-5 text-center text-[11px] text-slate-500">
-                            Access by invitation only. Need a demo account?{' '}
-                            <a
-                                href={OWNER_WA_LINK}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-emerald-700 font-semibold underline decoration-emerald-300 underline-offset-2"
-                            >
-                                Contact the owner
-                            </a>
-                            .
+                        {/* Mobile copyright */}
+                        <div className="lg:hidden text-center text-[10px] text-slate-400">
+                            © {new Date().getFullYear()} {OWNER_NAME}. All rights reserved.
                         </div>
                     </motion.div>
                 </main>
