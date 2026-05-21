@@ -293,10 +293,11 @@ export class AnalyticsService {
       .orderBy('createdAt', 'desc')
       .get();
     return snap.docs.map((doc) => {
-      const data = doc.data() as Brand;
+      const data = doc.data() as Brand & { category?: string };
       return {
         id: doc.id,
         name: data.name,
+        category: data.category ?? null,
         createdAt: data.createdAt.toDate().toISOString(),
       };
     });

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { api, BASE_URL, type ScanProgressEvent } from "../api/client";
-import { Globe, Loader2, MapPin, Radar, Rocket, Sparkles, Wand2, Zap } from 'lucide-react';
+import { api, BASE_URL, type Brand, type ScanProgressEvent } from "../api/client";
+import { Globe, Loader2, MapPin, Radar, Rocket, Sparkles, UserPlus, Wand2, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
@@ -46,6 +46,43 @@ export function ScanForm({ onScanComplete }: Props) {
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [suggestLoading, setSuggestLoading] = useState(false);
     const lastSuggestedBrand = useRef<string>('');
+    const [existingBrands, setExistingBrands] = useState<Brand[]>([]);
+    const [selectedBrandId, setSelectedBrandId] = useState<string>(''); // '' = new brand
+    const [autofillLoading, setAutofillLoading] = useState(false);
+
+    useEffect(() => {
+        api.getBrands().then(setExistingBrands).catch(() => setExistingBrands([]));
+    }, []);
+
+    const handleBrandPick = async (brandId: string) => {
+        setSelectedBrandId(brandId);
+        if (!brandId) {
+            // "+ New brand" — clear form
+            setBrand('');
+            setCategory('');
+            setDomain('');
+            setCountry('us');
+            return;
+        }
+        const picked = existingBrands.find((b) => b.id === brandId);
+        if (!picked) return;
+        setBrand(picked.name);
+        setCategory(picked.category ?? '');
+        setAutofillLoading(true);
+        try {
+            const sites = await api.listSeoSites(picked.name);
+            if (sites.length > 0) {
+                setDomain(sites[0].domain);
+                setCountry(sites[0].country ?? 'us');
+            } else {
+                setDomain('');
+            }
+        } catch {
+            // no sites — leave domain blank
+        } finally {
+            setAutofillLoading(false);
+        }
+    };
 
     const isLoading = phase !== 'idle';
     const needsDomain = mode === 'master';
@@ -203,6 +240,37 @@ export function ScanForm({ onScanComplete }: Props) {
                             })}
                         </div>
                     </div>
+
+                    {existingBrands.length > 0 && (
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.14em] flex items-center gap-1.5">
+                                <UserPlus className="w-3 h-3" /> Pick existing brand or start fresh
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={selectedBrandId}
+                                    onChange={(e) => handleBrandPick(e.target.value)}
+                                    disabled={isLoading || autofillLoading}
+                                    className="w-full border border-slate-200 rounded-[var(--radius-control)] px-3 py-3 text-sm bg-white text-slate-900 font-medium focus:outline-none focus:border-indigo-300 disabled:bg-slate-50 cursor-pointer"
+                                >
+                                    <option value="">+ New brand (fill manually)</option>
+                                    {existingBrands.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.name}{b.category ? ` — ${b.category}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                {autofillLoading && (
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-indigo-500 pointer-events-none" />
+                                )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                                {selectedBrandId
+                                    ? '✓ Form pre-filled from this brand’s last scan. You can still edit any field below.'
+                                    : 'Most users have one brand. Pick it once and the system remembers your settings.'}
+                            </p>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Field

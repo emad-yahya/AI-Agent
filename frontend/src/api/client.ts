@@ -101,6 +101,7 @@ export interface AnalyticsResponse {
 export interface Brand {
   id: string;
   name: string;
+  category?: string | null;
   createdAt: string;
 }
 
