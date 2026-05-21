@@ -176,16 +176,25 @@ export class SeoService {
   }
 
   async listSites(brand?: string): Promise<SeoSite[]> {
-    let query = this.firebase.seoSites().orderBy('createdAt', 'desc').limit(50);
     if (brand) {
-      const brandId = await this.findBrandId(brand);
-      if (!brandId) return [];
-      query = this.firebase
+      // Filter by the brand text stored on the seoSite doc directly.
+      // Avoids brandId resolution mismatches when duplicate brand docs were
+      // cleaned up and the seoSites still point at an older brandId.
+      const snap = await this.firebase
         .seoSites()
-        .where('brandId', '==', brandId)
-        .limit(50) as unknown as typeof query;
+        .where('brand', '==', brand)
+        .limit(50)
+        .get();
+      return snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<SeoSite, 'id'>),
+      }));
     }
-    const snap = await query.get();
+    const snap = await this.firebase
+      .seoSites()
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get();
     return snap.docs.map((d) => ({
       id: d.id,
       ...(d.data() as Omit<SeoSite, 'id'>),
