@@ -23,6 +23,15 @@ import {
 import { ScanEventsService } from './scan-events.service';
 import { SCAN_JOB, SCAN_QUEUE } from './scan-queue.constants';
 
+// Firestore single-field cap = 1,048,487 bytes. Truncate generously to leave
+// room for UTF-8 multi-byte chars and other fields in the same document.
+const FIRESTORE_FIELD_MAX_CHARS = 900_000;
+function truncateForFirestore(text: string): string {
+  if (!text) return text;
+  if (Buffer.byteLength(text, 'utf8') <= FIRESTORE_FIELD_MAX_CHARS) return text;
+  return text.slice(0, FIRESTORE_FIELD_MAX_CHARS) + '\n…[truncated]';
+}
+
 @Injectable()
 export class ScansService {
   private readonly logger = new Logger(ScansService.name);
@@ -93,7 +102,7 @@ export class ScansService {
           engine: raw.engine,
           templateId: raw.template.id,
           prompt: raw.prompt,
-          response: raw.response,
+          response: truncateForFirestore(raw.response),
           mentioned: raw.parsed.mentioned,
           position: raw.parsed.position,
           sentiment: raw.parsed.sentiment,
