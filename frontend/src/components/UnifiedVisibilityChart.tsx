@@ -4,7 +4,7 @@ import {
     Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts';
 import { motion } from 'framer-motion';
-import { TrendingUp, Loader2 } from 'lucide-react';
+import { TrendingUp, Loader2, RefreshCw } from 'lucide-react';
 import { api, type TimelinePoint, type SeoSite, type SeoSiteScan } from '../api/client';
 import { parseFirestoreDate } from '../lib/firestoreDate';
 
@@ -36,6 +36,7 @@ function shortLabel(key: string): string {
 export function UnifiedVisibilityChart({ brand, aiTimeline }: Props) {
     const [seoScans, setSeoScans] = useState<SeoSiteScan[]>([]);
     const [seoLoading, setSeoLoading] = useState(true);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         if (!brand) return;
@@ -58,7 +59,7 @@ export function UnifiedVisibilityChart({ brand, aiTimeline }: Props) {
             }
         })();
         return () => { cancelled = true; };
-    }, [brand]);
+    }, [brand, reloadKey]);
 
     // Build day-bucketed merged series
     const buckets = new Map<string, MergedPoint>();
@@ -111,6 +112,9 @@ export function UnifiedVisibilityChart({ brand, aiTimeline }: Props) {
     }
 
     const series = [...buckets.values()].sort((a, b) => a.day.localeCompare(b.day));
+    const aiPoints = series.filter((p) => p.aiMention !== null).length;
+    const googlePoints = series.filter((p) => p.googleCoverage !== null).length;
+    const doneSeoScans = seoScans.filter((s) => s.status === 'done').length;
 
     const isLoading = seoLoading;
 
@@ -140,6 +144,13 @@ export function UnifiedVisibilityChart({ brand, aiTimeline }: Props) {
                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" /> Google coverage %
                     </span>
+                    <button
+                        onClick={() => setReloadKey((k) => k + 1)}
+                        title="Refresh Google data"
+                        className="flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                    >
+                        <RefreshCw className={`w-3 h-3 ${seoLoading ? 'animate-spin' : ''}`} />
+                    </button>
                 </div>
             </div>
 
@@ -216,8 +227,8 @@ export function UnifiedVisibilityChart({ brand, aiTimeline }: Props) {
                             name="Google coverage %"
                             stroke="#10b981"
                             strokeWidth={2.5}
-                            dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
-                            activeDot={{ r: 7, strokeWidth: 2, stroke: '#fff' }}
+                            dot={{ r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 8, strokeWidth: 2, stroke: '#fff' }}
                             connectNulls
                         />
                     </LineChart>
@@ -225,16 +236,23 @@ export function UnifiedVisibilityChart({ brand, aiTimeline }: Props) {
             )}
 
             {!isLoading && series.length > 0 && (
-                <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-slate-500">
-                    <div className="flex items-start gap-1.5 bg-indigo-50/50 rounded-lg p-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1 shrink-0" />
-                        <span><b className="text-indigo-700">AI mention %</b> — out of all questions asked to ChatGPT/Gemini/Perplexity, how many named your brand.</span>
+                <>
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-slate-500">
+                        <div className="flex items-start gap-1.5 bg-indigo-50/50 rounded-lg p-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1 shrink-0" />
+                            <span><b className="text-indigo-700">AI mention %</b> ({aiPoints} day{aiPoints === 1 ? '' : 's'}) — out of all questions asked to ChatGPT/Gemini/Perplexity, how many named your brand.</span>
+                        </div>
+                        <div className="flex items-start gap-1.5 bg-emerald-50/50 rounded-lg p-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1 shrink-0" />
+                            <span><b className="text-emerald-700">Google coverage %</b> ({googlePoints} day{googlePoints === 1 ? '' : 's'}) — out of all tracked keywords, how many your site ranks for in top 10.</span>
+                        </div>
                     </div>
-                    <div className="flex items-start gap-1.5 bg-emerald-50/50 rounded-lg p-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1 shrink-0" />
-                        <span><b className="text-emerald-700">Google coverage %</b> — out of all tracked keywords, how many your site ranks for in top 10.</span>
-                    </div>
-                </div>
+                    {googlePoints === 0 && (
+                        <div className="mt-3 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            No completed Google scans yet for this brand ({doneSeoScans} done of {seoScans.length} total). Run a Master scan or open the Google sub-tab and click <b>Re-scan</b>, then hit the refresh icon above.
+                        </div>
+                    )}
+                </>
             )}
         </motion.div>
     );

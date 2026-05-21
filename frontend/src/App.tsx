@@ -1,5 +1,5 @@
 // frontend/src/App.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScanForm } from './components/ScanForm';
 import { ResultTable } from './components/ResultsTable';
@@ -56,6 +56,43 @@ type ScanMeta = {
     mode: 'quick' | 'master';
 };
 
+const PERSIST_KEY = 'ai-vis-tracker:active-scan/v1';
+
+type PersistedScan = {
+    v: 1;
+    scanId: string;
+    brandId: string;
+    meta: ScanMeta;
+    result: ScanResponse;
+    orchestration: MasterOrchestrationState;
+    subTab: 'actions' | 'ai' | 'google';
+    savedAt: string;
+};
+
+function loadPersistedScan(): PersistedScan | null {
+    try {
+        const raw = localStorage.getItem(PERSIST_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as PersistedScan;
+        if (parsed.v !== 1 || !parsed.scanId || !parsed.result) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+function savePersistedScan(scan: PersistedScan) {
+    try {
+        localStorage.setItem(PERSIST_KEY, JSON.stringify(scan));
+    } catch {
+        // quota exceeded — silent
+    }
+}
+
+function clearPersistedScan() {
+    try { localStorage.removeItem(PERSIST_KEY); } catch { /* noop */ }
+}
+
 export default function App() {
     const [tab, setTab] = useState<Tab>('scan');
     const [scanResult, setScanResult] = useState<ScanResponse | null>(null);
@@ -68,6 +105,32 @@ export default function App() {
     const [orchestration, setOrchestration] = useState<MasterOrchestrationState>(INITIAL_STATE);
     const { loading, run } = useAsync<ScanResponse>();
 
+    // Restore previous scan view on first mount so refresh / tab switch doesn't wipe results.
+    useEffect(() => {
+        const restored = loadPersistedScan();
+        if (!restored) return;
+        setScanResult(restored.result);
+        setScanMeta(restored.meta);
+        setLastScanBrandId(restored.brandId);
+        setOrchestration(restored.orchestration);
+        setScanSubTab(restored.subTab);
+    }, []);
+
+    // Persist on any meaningful change so a refresh keeps the same view.
+    useEffect(() => {
+        if (!scanResult || !scanMeta || !lastScanBrandId) return;
+        savePersistedScan({
+            v: 1,
+            scanId: scanResult.scan.id,
+            brandId: lastScanBrandId,
+            meta: scanMeta,
+            result: scanResult,
+            orchestration,
+            subTab: scanSubTab,
+            savedAt: new Date().toISOString(),
+        });
+    }, [scanResult, scanMeta, lastScanBrandId, orchestration, scanSubTab]);
+
     const handleScanComplete = async (
         brandId: string,
         scanId: string,
@@ -75,6 +138,7 @@ export default function App() {
         category: string,
         opts: { mode: 'quick' | 'master'; domain: string; country: string },
     ) => {
+        clearPersistedScan();
         setScanMeta({ brand, category, domain: opts.domain, country: opts.country, mode: opts.mode });
         setLastScanBrandId(brandId);
         setOrchestration(INITIAL_STATE);
@@ -93,6 +157,15 @@ export default function App() {
                 });
             }
         }
+    };
+
+    const handleDiscardScan = () => {
+        clearPersistedScan();
+        setScanResult(null);
+        setScanMeta(null);
+        setLastScanBrandId(null);
+        setOrchestration(INITIAL_STATE);
+        setScanSubTab('actions');
     };
 
     const activeTab = TABS.find(t => t.key === tab)!;
@@ -199,6 +272,23 @@ export default function App() {
                                         transition={{ duration: 0.3 }}
                                         className="flex flex-col gap-6"
                                     >
+                                        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-indigo-50/60 ring-1 ring-indigo-100 text-[12px] text-slate-600">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                                <span className="truncate">
+                                                    Viewing scan for <b className="text-slate-900">{scanMeta.brand}</b>
+                                                    {' · '}
+                                                    <span className="text-slate-500">refresh-safe — saved locally</span>
+                                                </span>
+                                            </div>
+                                            <button
+                                                onClick={handleDiscardScan}
+                                                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline underline-offset-2 shrink-0"
+                                            >
+                                                Start fresh
+                                            </button>
+                                        </div>
+
                                         <BrandHeaderStrip
                                             scanMeta={scanMeta}
                                             scanResult={scanResult}
