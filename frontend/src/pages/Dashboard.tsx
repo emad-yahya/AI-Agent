@@ -4,13 +4,12 @@ import { motion } from 'framer-motion';
 import { api, type AnalyticsResponse, type Brand } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { StatCard } from '../components/StatCard';
-import { VisibilityChart } from '../components/VisibilityChart';
 import { EngineBreakdown } from '../components/EngineBreakdown';
 import { Activity, Target, Percent, AlertCircle, Inbox } from 'lucide-react';
 import { ScanHistory } from '../components/ScanHistory';
 import { ScheduledScansPanel } from '../components/ScheduledScansPanel';
 import { SeoSitesOverview } from '../components/SeoSitesOverview';
-import { BrandSeoTrend } from '../components/BrandSeoTrend';
+import { UnifiedVisibilityChart } from '../components/UnifiedVisibilityChart';
 import { SectionIntro } from '../components/Hint';
 
 export function Dashboard() {
@@ -122,8 +121,7 @@ export function Dashboard() {
             );
           })()}
 
-          <VisibilityChart timeline={data.timeline} />
-          <BrandSeoTrend brand={selectedBrand} />
+          <UnifiedVisibilityChart brand={selectedBrand} aiTimeline={data.timeline} />
           <EngineBreakdown byEngine={data.byEngine} />
           <ScanHistory brand={selectedBrand} />
           <SeoSitesOverview />
