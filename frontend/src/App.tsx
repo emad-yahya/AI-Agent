@@ -47,7 +47,7 @@ type Tab = 'scan' | 'dashboard' | 'compare' | 'settings';
 const OWNER_NAME = 'Emad Yahya';
 const OWNER_WA_NUMBER = '971566392647';
 const OWNER_WA_LINK = `https://wa.me/${OWNER_WA_NUMBER}?text=${encodeURIComponent(
-    'مرحباً Emad، شفت AI Visibility Tracker تبعك وحبيت أعرف أكتر عن خدماتك',
+    "Hi Emad, I saw your AI Visibility Tracker and I'm interested in learning more about your services.",
 )}`;
 
 function PoweredByBadge({ size = 'sm' }: { size?: 'sm' | 'xs' }) {
