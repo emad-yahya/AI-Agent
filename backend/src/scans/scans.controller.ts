@@ -19,6 +19,9 @@ import { AIService } from 'src/ai/ai.service';
 import { CreateScanDto } from './dto';
 import { CompareDto } from './compare.dto';
 import { GenerateContentDto } from './generate-content.dto';
+import { CurrentUser } from 'src/auth/current-user.decorator';
+import { AuthRequest } from 'src/auth/auth.guard';
+import { UsersService } from 'src/users/users.service';
 
 @Controller('scans')
 export class ScanController {
@@ -26,6 +29,7 @@ export class ScanController {
     private scans: ScansService,
     private scanEvents: ScanEventsService,
     private ai: AIService,
+    private users: UsersService,
   ) {}
 
   @Get('suggest-categories')
@@ -41,8 +45,15 @@ export class ScanController {
   @Post()
   @HttpCode(201)
   @UseGuards(ThrottlerGuard)
-  create(@Body() dto: CreateScanDto) {
-    return this.scans.createScan(dto);
+  async create(
+    @Body() dto: CreateScanDto,
+    @CurrentUser() current: AuthRequest['user'],
+  ) {
+    const isMaster = dto.mode === 'full';
+    await this.users.checkScanQuota(current.id, isMaster);
+    const result = await this.scans.createScan(dto);
+    await this.users.incrementUsage(current.id, isMaster);
+    return result;
   }
 
   @Post('compare')

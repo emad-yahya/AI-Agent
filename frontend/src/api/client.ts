@@ -1,18 +1,49 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api',
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach API key if configured
-const apiKey = (import.meta.env.VITE_API_KEY as string | undefined) ?? '';
-if (apiKey) {
-  http.interceptors.request.use((config) => {
-    config.headers['Authorization'] = `Bearer ${apiKey}`;
-    return config;
-  });
+// JWT token (set by AuthContext after login). Falls back to legacy
+// VITE_API_KEY for backwards-compat in local dev.
+let currentToken: string | null = null;
+const legacyApiKey = (import.meta.env.VITE_API_KEY as string | undefined) ?? '';
+
+export function setAuthToken(token: string | null) {
+  currentToken = token;
 }
+
+http.interceptors.request.use((config) => {
+  const tok = currentToken || legacyApiKey;
+  if (tok) {
+    config.headers['Authorization'] = `Bearer ${tok}`;
+  }
+  return config;
+});
+
+// Surface backend error messages and trigger logout on 401 so the UI
+// drops back to the login screen instead of staying broken.
+http.interceptors.response.use(
+  (r) => r,
+  (err: AxiosError<{ message?: string | string[] }>) => {
+    if (err.response?.status === 401) {
+      try { localStorage.removeItem('ai-vis-tracker:jwt/v1'); } catch { /* noop */ }
+      // Force reload so AuthProvider re-reads empty token and renders LoginPage.
+      // Skip if we're already on the login screen to avoid loops.
+      if (typeof window !== 'undefined' && !window.location.pathname.endsWith('/login')) {
+        window.location.reload();
+      }
+    }
+    const data = err.response?.data;
+    const raw = data?.message;
+    const msg = Array.isArray(raw) ? raw.join(', ') : raw;
+    if (msg) {
+      err.message = msg;
+    }
+    return Promise.reject(err);
+  },
+);
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -1206,7 +1237,83 @@ export const api = {
     );
     return res.data;
   },
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+
+  login: async (email: string, password: string) => {
+    const res = await http.post<{ token: string; user: PublicUser }>(
+      '/auth/login',
+      { email, password },
+    );
+    return res.data;
+  },
+
+  me: async () => {
+    const res = await http.get<PublicUser>('/auth/me');
+    return res.data;
+  },
+
+  changePassword: async (oldPassword: string, newPassword: string) => {
+    const res = await http.post<{ ok: true }>('/auth/change-password', {
+      oldPassword,
+      newPassword,
+    });
+    return res.data;
+  },
+
+  // ── Admin: user management (owner only) ───────────────────────────────────
+
+  listUsers: async () => {
+    const res = await http.get<PublicUser[]>('/admin/users');
+    return res.data;
+  },
+
+  createDemoUser: async (input: {
+    email: string;
+    password: string;
+    daysValid: number;
+    maxMasterScans: number;
+    maxScans: number;
+  }) => {
+    const res = await http.post<PublicUser>('/admin/users', input);
+    return res.data;
+  },
+
+  updateDemoUser: async (
+    id: string,
+    input: {
+      active?: boolean;
+      addDaysValid?: number;
+      maxMasterScans?: number;
+      maxScans?: number;
+      resetUsage?: boolean;
+      newPassword?: string;
+    },
+  ) => {
+    const res = await http.patch<PublicUser>(`/admin/users/${id}`, input);
+    return res.data;
+  },
+
+  deleteDemoUser: async (id: string) => {
+    const res = await http.delete<{ ok: true }>(`/admin/users/${id}`);
+    return res.data;
+  },
 };
+
+export interface PublicUser {
+  id: string;
+  email: string;
+  role: 'owner' | 'demo';
+  active: boolean;
+  expiresAt: string | null;
+  maxMasterScans: number;
+  maxScans: number;
+  usedMasterScans: number;
+  usedScans: number;
+  createdAt: string;
+  lastLoginAt: string | null;
+  expired: boolean;
+}
 
 export interface BrandBenchmark {
   brand: string;

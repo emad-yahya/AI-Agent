@@ -24,7 +24,9 @@ import { OnPageSeoModule } from './on-page-seo/on-page-seo.module';
 import { ContentGapModule } from './content-gap/content-gap.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { SystemHealthModule } from './system-health/system-health.module';
-import { ApiKeyMiddleware } from './auth/api-key.middleware';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthMiddleware } from './auth/auth.middleware';
 
 const redisUrl = process.env.REDIS_URL;
 
@@ -49,6 +51,8 @@ const redisUrl = process.env.REDIS_URL;
         ]
       : []),
     FirebaseModule,
+    UsersModule,
+    AuthModule,
     AIModule,
     ScansModule,
     AnalyticsModule,
@@ -68,12 +72,20 @@ const redisUrl = process.env.REDIS_URL;
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // SSE endpoint excluded: EventSource API cannot send Authorization headers.
-    // The scanId path param is a Firestore-generated random ID (~20 char base64)
-    // that is only known to the client that created the scan via authenticated POST.
+    // Public endpoints (no auth required):
+    //   - POST /auth/login         (obvious — login needs to be reachable)
+    //   - GET  /scans/stream/:id   (SSE; EventSource cannot send Authorization
+    //                                header. scanId is a random Firestore ID
+    //                                only known to the authenticated creator.)
+    //   - GET  /system/health/integrations (health probe used by login screen
+    //                                to show readiness; safe to expose)
     consumer
-      .apply(ApiKeyMiddleware)
-      .exclude({ path: 'scans/stream/:scanId', method: RequestMethod.GET })
+      .apply(JwtAuthMiddleware)
+      .exclude(
+        { path: 'auth/login', method: RequestMethod.POST },
+        { path: 'scans/stream/:scanId', method: RequestMethod.GET },
+        { path: 'system/health/integrations', method: RequestMethod.GET },
+      )
       .forRoutes('*');
   }
 }

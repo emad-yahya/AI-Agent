@@ -39,6 +39,9 @@ import {
 } from 'lucide-react';
 import { SystemHealthPanel } from './components/SystemHealthPanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
+import { UsersSettings } from './components/UsersSettings';
+import { AccountPanel } from './components/AccountPanel';
+import { useAuth } from './auth/AuthContext';
 import { Building2, FileSearch, Search, Trophy, ListChecks, MapPin, Bell } from 'lucide-react';
 
 type Tab = 'scan' | 'dashboard' | 'compare' | 'settings';
@@ -539,7 +542,7 @@ export default function App() {
                             </>
                         )}
 
-                        {tab === 'settings' && <SystemHealthPanel />}
+                        {tab === 'settings' && <SettingsTab />}
                     </motion.div>
                 </AnimatePresence>
 
@@ -572,6 +575,18 @@ export default function App() {
                     </div>
                 </footer>
             </main>
+        </div>
+    );
+}
+
+function SettingsTab() {
+    const { user } = useAuth();
+    const isOwner = user?.role === 'owner';
+    return (
+        <div className="space-y-6">
+            <AccountPanel />
+            {isOwner && <UsersSettings />}
+            <SystemHealthPanel />
         </div>
     );
 }
