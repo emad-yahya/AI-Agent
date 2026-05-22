@@ -149,37 +149,43 @@ export function LoginPage() {
                 transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
             />
 
-            {/* ─── Robot art — left half, masked + parallax ─── */}
+            {/* ─── Robot art — left half, parallax + zoom on focus ─── */}
             <motion.div
                 className="absolute inset-y-0 left-0 w-[55%] z-[1] hidden md:block pointer-events-none"
                 style={{ x: robotX, y: robotY }}
+                animate={{ scale: focused ? 1.08 : 1 }}
+                transition={{ type: 'spring', stiffness: 80, damping: 20 }}
             >
                 <img
                     src="/roobot.png"
                     alt=""
                     aria-hidden="true"
                     draggable={false}
-                    className="absolute inset-0 w-full h-full object-cover object-[30%_center] scale-110"
+                    className="absolute inset-0 w-full h-full object-cover object-[35%_center] scale-105"
                     style={{
-                        filter: 'saturate(1.1) contrast(1.1) hue-rotate(-10deg)',
+                        filter: 'saturate(1.15) contrast(1.08) hue-rotate(-8deg) brightness(0.95)',
                         maskImage:
-                            'linear-gradient(90deg, #000 30%, rgba(0,0,0,0.6) 60%, transparent 95%),' +
-                            'linear-gradient(180deg, transparent 0%, #000 15%, #000 80%, transparent 100%)',
+                            'linear-gradient(90deg, #000 55%, rgba(0,0,0,0.7) 78%, transparent 100%)',
                         WebkitMaskImage:
-                            'linear-gradient(90deg, #000 30%, rgba(0,0,0,0.6) 60%, transparent 95%),' +
-                            'linear-gradient(180deg, transparent 0%, #000 15%, #000 80%, transparent 100%)',
-                        maskComposite: 'intersect',
-                        WebkitMaskComposite: 'source-in',
-                        mixBlendMode: 'screen',
-                        opacity: 0.85,
+                            'linear-gradient(90deg, #000 55%, rgba(0,0,0,0.7) 78%, transparent 100%)',
                     }}
                 />
-                {/* Tinted overlay to push robot into purple palette */}
+                {/* Violet tint to push robot into palette */}
                 <div
                     className="absolute inset-0"
                     style={{
-                        background: 'linear-gradient(135deg, rgba(76,29,149,0.5) 0%, rgba(168,85,247,0.3) 50%, transparent 100%)',
+                        background:
+                            'linear-gradient(135deg, rgba(76,29,149,0.35) 0%, rgba(168,85,247,0.20) 50%, transparent 100%)',
                         mixBlendMode: 'multiply',
+                    }}
+                />
+                {/* Cyan circuit highlight on robot face (mimics video) */}
+                <div
+                    className="absolute inset-0"
+                    style={{
+                        background:
+                            'radial-gradient(420px 380px at 45% 35%, rgba(34,211,238,0.20), transparent 65%)',
+                        mixBlendMode: 'screen',
                     }}
                 />
             </motion.div>
@@ -234,8 +240,12 @@ export function LoginPage() {
 
                 {/* Main: hero left, form right (form-only on mobile) */}
                 <div className="flex-1 grid lg:grid-cols-[1.05fr_1fr] gap-8 px-6 md:px-10 lg:px-14 py-10 lg:py-16 items-center">
-                    {/* HERO copy */}
-                    <div className="hidden lg:block max-w-xl">
+                    {/* HERO copy — dims & shrinks slightly when form is focused (zoom-in feel) */}
+                    <motion.div
+                        className="hidden lg:block max-w-xl"
+                        animate={{ opacity: focused ? 0.35 : 1, scale: focused ? 0.96 : 1, x: focused ? -10 : 0 }}
+                        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                    >
                         <motion.div
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -270,30 +280,38 @@ export function LoginPage() {
                             Audit your brand's presence in AI answers, benchmark competitors,
                             and follow playbooks that actually move the needle.
                         </motion.p>
-                    </div>
+                    </motion.div>
 
-                    {/* FORM — glassy dark cyber card */}
+                    {/* FORM — glassy dark cyber card, zooms in on focus */}
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
+                        animate={{
+                            opacity: 1,
+                            y: 0,
+                            scale: focused ? 1.04 : 1,
+                        }}
+                        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                         className="w-full max-w-[440px] mx-auto lg:ml-auto lg:mr-0"
                     >
-                        {/* Gradient border wrapper */}
-                        <div
+                        {/* Gradient border wrapper — animates intensity on focus */}
+                        <motion.div
                             className="rounded-3xl p-[1.5px]"
-                            style={{
-                                background:
-                                    'linear-gradient(135deg, rgba(34,211,238,0.6), rgba(168,85,247,0.5) 50%, rgba(236,72,153,0.5))',
+                            animate={{
+                                background: isEmail
+                                    ? 'linear-gradient(135deg, rgba(34,211,238,0.95), rgba(99,102,241,0.7) 50%, rgba(168,85,247,0.6))'
+                                    : isPw
+                                        ? 'linear-gradient(135deg, rgba(168,85,247,0.7), rgba(236,72,153,0.95) 50%, rgba(244,63,94,0.7))'
+                                        : 'linear-gradient(135deg, rgba(34,211,238,0.6), rgba(168,85,247,0.5) 50%, rgba(236,72,153,0.5))',
                             }}
+                            transition={{ duration: 0.4 }}
                         >
                             <div
                                 className="rounded-3xl p-8 md:p-9 backdrop-blur-2xl"
                                 style={{
                                     background:
-                                        'linear-gradient(135deg, rgba(20,9,46,0.85) 0%, rgba(30,15,60,0.75) 100%)',
+                                        'linear-gradient(135deg, rgba(40,15,75,0.85) 0%, rgba(58,20,90,0.75) 50%, rgba(75,20,80,0.75) 100%)',
                                     boxShadow:
-                                        '0 30px 80px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+                                        '0 30px 80px -20px rgba(124,58,237,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
                                 }}
                             >
                                 {/* Heading */}
@@ -473,7 +491,7 @@ export function LoginPage() {
                                     </div>
                                 </motion.a>
                             </div>
-                        </div>
+                        </motion.div>
                     </motion.div>
                 </div>
 
