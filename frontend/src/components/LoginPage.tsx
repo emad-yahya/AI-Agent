@@ -152,22 +152,21 @@ export function LoginPage() {
                 transition={{ type: 'spring', stiffness: 80, damping: 22 }}
             >
                 <img
-                    src="/robot.png"
+                    src="/robot-1.png"
                     alt=""
                     aria-hidden="true"
                     draggable={false}
                     className="w-full h-full object-cover object-center"
                     style={{
-                        filter: 'saturate(1.05) contrast(1.02)',
+                        filter: 'saturate(1.08) contrast(1.04)',
                     }}
                 />
-                {/* Dim overlay so hero text + form stay legible */}
+                {/* Edge vignette: dark on left + right for hero/form legibility, robot stays bright in center */}
                 <div
                     className="absolute inset-0"
                     style={{
                         background:
-                            'linear-gradient(90deg, rgba(15,8,40,0.85) 0%, rgba(20,10,55,0.55) 28%, rgba(20,10,55,0.20) 50%, rgba(20,10,55,0.55) 72%, rgba(15,8,40,0.85) 100%),' +
-                            'linear-gradient(180deg, rgba(15,8,40,0.45) 0%, transparent 25%, transparent 75%, rgba(15,8,40,0.55) 100%)',
+                            'linear-gradient(90deg, rgba(15,8,40,0.78) 0%, rgba(20,10,55,0.30) 22%, rgba(20,10,55,0) 45%, rgba(20,10,55,0) 60%, rgba(20,10,55,0.45) 82%, rgba(15,8,40,0.80) 100%)',
                     }}
                 />
             </motion.div>
