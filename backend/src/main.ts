@@ -1,11 +1,15 @@
 import { NestApplication, NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { UsersService } from './users/users.service';
 
 async function bootstrap() {
   const logger = new Logger(NestApplication.name);
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Trust Railway / Vercel / Cloudflare proxy so req.ip + XFF-derived IPs in
+  // DemoTrackingService reflect the real visitor, not the proxy hop.
+  app.set('trust proxy', 1);
   const frontendUrl = (
     process.env.FRONTEND_URL ?? 'http://localhost:5173'
   ).replace(/\/+$/, '');

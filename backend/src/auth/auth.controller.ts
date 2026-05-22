@@ -4,9 +4,12 @@ import {
   Controller,
   Get,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { UsersService } from 'src/users/users.service';
+import { DemoTrackingService } from 'src/admin/demo-tracking.service';
 import { JwtAuthService } from './jwt.service';
 import { AuthRequest, JwtAuthGuard } from './auth.guard';
 import { CurrentUser } from './current-user.decorator';
@@ -16,6 +19,7 @@ export class AuthController {
   constructor(
     private users: UsersService,
     private jwt: JwtAuthService,
+    private demoTracking: DemoTrackingService,
   ) {}
 
   @Post('login')
@@ -59,7 +63,7 @@ export class AuthController {
    * blocked anyway), but the JWT TTL still respects the account's expiresAt.
    */
   @Post('demo-login')
-  async demoLogin() {
+  async demoLogin(@Req() req: Request) {
     const found = await this.users.findDemoSeed();
     if (!found) {
       throw new BadRequestException(
@@ -81,7 +85,32 @@ export class AuthController {
       { sub: found.id, email: found.data.email, role: found.data.role },
       ttl,
     );
-    return { token, user: this.users.publicShape(found.id, found.data) };
+    // Track this visit. Failures are non-fatal — we never want a Firestore
+    // hiccup to block the demo from being usable.
+    let sessionId: string | null = null;
+    try {
+      sessionId = await this.demoTracking.startSession(req);
+    } catch {
+      sessionId = null;
+    }
+    return {
+      token,
+      sessionId,
+      user: this.users.publicShape(found.id, found.data),
+    };
+  }
+
+  /**
+   * Idempotent heartbeat from the demo SPA. Frontend pings every 60s while
+   * the demo tab is foregrounded so we can compute session duration without
+   * relying on an explicit logout signal.
+   */
+  @Post('demo-heartbeat')
+  async demoHeartbeat(@Body() body: { sessionId?: string }) {
+    if (body?.sessionId) {
+      await this.demoTracking.heartbeat(body.sessionId);
+    }
+    return { ok: true };
   }
 
   @Get('me')

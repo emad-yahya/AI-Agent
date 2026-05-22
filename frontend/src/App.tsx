@@ -42,7 +42,9 @@ import { CollapsibleSection } from './components/CollapsibleSection';
 import { UsersSettings } from './components/UsersSettings';
 import { AccountPanel } from './components/AccountPanel';
 import { DemoBanner } from './components/DemoBanner';
+import { DemoSessionsPanel } from './components/DemoSessionsPanel';
 import { useAuth } from './auth/AuthContext';
+import { useDemoHeartbeat } from './hooks/useDemoHeartbeat';
 import { Building2, FileSearch, Search, Trophy, ListChecks, MapPin, Bell } from 'lucide-react';
 
 type Tab = 'scan' | 'dashboard' | 'compare' | 'settings';
@@ -240,6 +242,7 @@ export default function App() {
     };
 
     const { isDemo } = useAuth();
+    useDemoHeartbeat();
     // Demo hides Settings tab entirely (4a from spec: clean experience, no
     // disabled-with-badge half-state). Demo also can't reach New scan.
     const visibleTabs = isDemo
@@ -595,6 +598,7 @@ function SettingsTab() {
         <div className="space-y-6">
             <AccountPanel />
             {isOwner && <UsersSettings />}
+            {isOwner && <DemoSessionsPanel />}
             <SystemHealthPanel />
         </div>
     );

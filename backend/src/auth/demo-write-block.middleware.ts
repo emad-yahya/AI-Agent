@@ -38,6 +38,7 @@ export class DemoWriteBlockMiddleware implements NestMiddleware {
     const demoAllowedWrites = [
       '/generators/', // controller returns fixtures, no real API call
       '/auth/demo-login', // entry point
+      '/auth/demo-heartbeat', // visit tracking ping (60s interval)
     ];
     if (demoAllowedWrites.some((needle) => path.includes(needle))) {
       return next();

@@ -26,6 +26,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { SystemHealthModule } from './system-health/system-health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { AdminModule } from './admin/admin.module';
 import { JwtAuthMiddleware } from './auth/auth.middleware';
 import { DemoWriteBlockMiddleware } from './auth/demo-write-block.middleware';
 
@@ -54,6 +55,7 @@ const redisUrl = process.env.REDIS_URL;
     FirebaseModule,
     UsersModule,
     AuthModule,
+    AdminModule,
     AIModule,
     ScansModule,
     AnalyticsModule,
@@ -85,6 +87,7 @@ export class AppModule implements NestModule {
       .exclude(
         { path: 'auth/login', method: RequestMethod.POST },
         { path: 'auth/demo-login', method: RequestMethod.POST },
+        { path: 'auth/demo-heartbeat', method: RequestMethod.POST },
         { path: 'scans/stream/:scanId', method: RequestMethod.GET },
         { path: 'system/health/integrations', method: RequestMethod.GET },
       )

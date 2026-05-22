@@ -1249,9 +1249,33 @@ export const api = {
   },
 
   loginDemo: async () => {
-    const res = await http.post<{ token: string; user: PublicUser }>(
-      '/auth/demo-login',
-      {},
+    const res = await http.post<{
+      token: string;
+      user: PublicUser;
+      sessionId: string | null;
+    }>('/auth/demo-login', {});
+    return res.data;
+  },
+
+  demoHeartbeat: async (sessionId: string) => {
+    if (!sessionId) return;
+    try {
+      await http.post('/auth/demo-heartbeat', { sessionId });
+    } catch {
+      // Silent — heartbeat is best-effort, never disrupt the visitor.
+    }
+  },
+
+  listDemoSessions: async (limit = 200) => {
+    const res = await http.get<DemoSessionRow[]>('/admin/demo-sessions', {
+      params: { limit },
+    });
+    return res.data;
+  },
+
+  getDemoSessionsSummary: async () => {
+    const res = await http.get<DemoSessionsSummary>(
+      '/admin/demo-sessions/summary',
     );
     return res.data;
   },
@@ -1401,4 +1425,31 @@ export interface SystemHealthResponse {
   checks: IntegrationCheck[];
   allOk: boolean;
   coreOk: boolean;
+}
+
+// ── Demo tracking types ───────────────────────────────────────────────────
+
+export interface DemoSessionRow {
+  id: string;
+  ip: string;
+  country: string | null;
+  uaSummary: string;
+  userAgent: string;
+  referrer: string | null;
+  startedAt: string;
+  lastActiveAt: string;
+  durationSec: number;
+  active: boolean;
+}
+
+export interface DemoSessionsSummary {
+  total: number;
+  last24h: number;
+  last7d: number;
+  today: number;
+  active: number;
+  avgDurationSec: number;
+  topCountries: Array<{ country: string; count: number }>;
+  topReferrers: Array<{ source: string; count: number }>;
+  topUas: Array<{ ua: string; count: number }>;
 }
