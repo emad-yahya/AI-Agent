@@ -56,3 +56,24 @@ export class OwnerOnlyGuard implements CanActivate {
     return true;
   }
 }
+
+/**
+ * Blocks demo-role users from executing the action. Used to wrap any endpoint
+ * that would consume API credits, mutate persisted data, or trigger external
+ * calls (scans, real generator runs, user mgmt, settings writes).
+ *
+ * Generators do NOT use this guard — they fall through to a demo-aware service
+ * that returns pre-built fixtures instead of hitting the LLM.
+ */
+@Injectable()
+export class DemoBlockGuard implements CanActivate {
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest<AuthRequest>();
+    if (req.user?.role === 'demo') {
+      throw new ForbiddenException(
+        'Disabled in demo mode — contact Emad for a live audit.',
+      );
+    }
+    return true;
+  }
+}

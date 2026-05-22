@@ -249,3 +249,38 @@ POST   /api/geo-actions/completion        — toggle action complete
 POST   /api/content-gap/brief             — SERP+PAA → full content brief
 POST   /api/generators/schema/faq-from-paa — LLM writes FAQ answers + JSON-LD
 ```
+
+---
+
+## Demo mode
+
+Public, credential-less demo entry. Designed to let prospects experience the
+whole product without consuming Gemini / Serper credits or mutating the real
+database.
+
+**Entry:** "View Demo" button on the login screen → calls `POST /api/auth/demo-login`
+→ JWT for the seeded demo account.
+
+**Seeded by:** `UsersService.seedDemoAccount()` runs on every backend boot.
+Configure with env vars:
+- `DEMO_EMAIL` (default: `demo@aivisibilitytracker.com`)
+- `DEMO_PASSWORD` (default: `demo-public-2026`)
+
+**What a demo user can do:**
+- Browse Dashboard + Compare tabs and view existing Platinum Square scan data
+- Open any generator (FAQ / Org / Article / Review / llms.txt / robots.txt) —
+  receives pre-built fixtures from `backend/src/generators/demo-fixtures.ts`,
+  zero LLM cost, instant response
+- See the demo banner at top with a WhatsApp CTA for a live audit
+
+**What a demo user cannot do (returns 403):**
+- Trigger new scans (AI, SEO, on-page, content-gap, brand-presence, competitor-audit)
+- Run onboarding wizard
+- Manage users / change settings / modify alerts
+- Modify any Firestore state
+
+Enforcement:
+- `DemoWriteBlockMiddleware` (global) — blocks every non-GET request from
+  role=demo with an allowlist for `/generators/*` and `/auth/demo-login`
+- Frontend hides Settings + New Scan tabs for demo users
+- Backend has a `DemoBlockGuard` for explicit per-route use if needed in future

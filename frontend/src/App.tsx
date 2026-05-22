@@ -41,6 +41,7 @@ import { SystemHealthPanel } from './components/SystemHealthPanel';
 import { CollapsibleSection } from './components/CollapsibleSection';
 import { UsersSettings } from './components/UsersSettings';
 import { AccountPanel } from './components/AccountPanel';
+import { DemoBanner } from './components/DemoBanner';
 import { useAuth } from './auth/AuthContext';
 import { Building2, FileSearch, Search, Trophy, ListChecks, MapPin, Bell } from 'lucide-react';
 
@@ -238,12 +239,20 @@ export default function App() {
         setScanSubTab('actions');
     };
 
-    const activeTab = TABS.find(t => t.key === tab)!;
+    const { isDemo } = useAuth();
+    // Demo hides Settings tab entirely (4a from spec: clean experience, no
+    // disabled-with-badge half-state). Demo also can't reach New scan.
+    const visibleTabs = isDemo
+        ? TABS.filter((t) => t.key !== 'settings' && t.key !== 'scan')
+        : TABS;
+    const safeTab = visibleTabs.find((t) => t.key === tab) ? tab : visibleTabs[0].key;
+    const activeTab = visibleTabs.find((t) => t.key === safeTab) ?? visibleTabs[0];
 
     return (
         <div className="min-h-screen relative">
             <div className="app-mesh-bg" />
             <div className="app-grain" />
+            <DemoBanner />
 
             {/* Header */}
             <header className="sticky top-0 z-40 glass-strong border-b border-white/40">
@@ -272,8 +281,8 @@ export default function App() {
 
                     {/* Segmented tabs */}
                     <nav className="flex gap-1 bg-white/60 rounded-2xl p-1.5 ring-1 ring-slate-200/60 shadow-[var(--shadow-soft)]">
-                        {TABS.map(({ key, label, Icon, gradient }) => {
-                            const active = tab === key;
+                        {visibleTabs.map(({ key, label, Icon, gradient }) => {
+                            const active = safeTab === key;
                             return (
                                 <button
                                     key={key}
@@ -542,7 +551,7 @@ export default function App() {
                             </>
                         )}
 
-                        {tab === 'settings' && <SettingsTab />}
+                        {safeTab === 'settings' && !isDemo && <SettingsTab />}
                     </motion.div>
                 </AnimatePresence>
 

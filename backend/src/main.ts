@@ -1,6 +1,7 @@
 import { NestApplication, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { UsersService } from './users/users.service';
 
 async function bootstrap() {
   const logger = new Logger(NestApplication.name);
@@ -11,6 +12,14 @@ async function bootstrap() {
   app.enableCors({ origin: frontendUrl });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   app.setGlobalPrefix('api');
+
+  // Idempotent demo seed — ensures the public "View Demo" button always works.
+  try {
+    const users = app.get(UsersService);
+    await users.seedDemoAccount();
+  } catch (err) {
+    logger.warn(`demo seed skipped: ${(err as Error).message}`);
+  }
 
   await app.listen(process.env.PORT ?? 3000);
   logger.log(`backend running on ${await app.getUrl()}`);

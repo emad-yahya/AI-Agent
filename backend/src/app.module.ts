@@ -27,6 +27,7 @@ import { SystemHealthModule } from './system-health/system-health.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthMiddleware } from './auth/auth.middleware';
+import { DemoWriteBlockMiddleware } from './auth/demo-write-block.middleware';
 
 const redisUrl = process.env.REDIS_URL;
 
@@ -83,8 +84,21 @@ export class AppModule implements NestModule {
       .apply(JwtAuthMiddleware)
       .exclude(
         { path: 'auth/login', method: RequestMethod.POST },
+        { path: 'auth/demo-login', method: RequestMethod.POST },
         { path: 'scans/stream/:scanId', method: RequestMethod.GET },
         { path: 'system/health/integrations', method: RequestMethod.GET },
+      )
+      .forRoutes('*');
+
+    // Hard barrier: demo role cannot trigger any write/external API call,
+    // except a small allowlist (generators short-circuit to fixtures,
+    // /auth/demo-login is the entry point). Runs AFTER JwtAuthMiddleware so
+    // req.user is populated.
+    consumer
+      .apply(DemoWriteBlockMiddleware)
+      .exclude(
+        { path: 'auth/login', method: RequestMethod.POST },
+        { path: 'auth/demo-login', method: RequestMethod.POST },
       )
       .forRoutes('*');
   }

@@ -49,6 +49,41 @@ export class AuthController {
     };
   }
 
+  /**
+   * Public, credential-less demo entry. Issues a short-lived JWT for the
+   * pre-seeded demo account so a "View Demo" button on the login page can drop
+   * a visitor straight into a read-only tour without exposing credentials.
+   *
+   * Demo writes are blocked at the route level by DemoBlockGuard; this
+   * endpoint just hands out a token. Quota is irrelevant for demo (writes
+   * blocked anyway), but the JWT TTL still respects the account's expiresAt.
+   */
+  @Post('demo-login')
+  async demoLogin() {
+    const found = await this.users.findDemoSeed();
+    if (!found) {
+      throw new BadRequestException(
+        'Demo account not provisioned — set DEMO_EMAIL / DEMO_PASSWORD env vars',
+      );
+    }
+    if (!found.data.active) {
+      throw new BadRequestException('Demo account disabled');
+    }
+    await this.users.touchLogin(found.id);
+    let ttl = 24 * 60 * 60; // 1 day
+    if (found.data.expiresAt) {
+      const remaining = Math.floor(
+        (found.data.expiresAt.toDate().getTime() - Date.now()) / 1000,
+      );
+      if (remaining > 0) ttl = Math.min(remaining, 30 * 24 * 60 * 60);
+    }
+    const token = this.jwt.sign(
+      { sub: found.id, email: found.data.email, role: found.data.role },
+      ttl,
+    );
+    return { token, user: this.users.publicShape(found.id, found.data) };
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser() current: AuthRequest['user']) {

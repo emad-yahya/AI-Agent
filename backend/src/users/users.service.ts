@@ -256,4 +256,65 @@ export class UsersService {
   publicShape(id: string, doc: UserDoc) {
     return this.toPublic(id, doc);
   }
+
+  // ── Demo seed ──────────────────────────────────────────────────────────────
+
+  /**
+   * Returns the canonical demo seed account if one exists. The seed account is
+   * the one whose email matches the DEMO_EMAIL env var (case-insensitive) and
+   * whose role is 'demo'. /auth/demo-login uses this lookup so we never have
+   * to expose credentials in the public link.
+   */
+  async findDemoSeed() {
+    const email = (process.env.DEMO_EMAIL || 'demo@aivisibilitytracker.com')
+      .toLowerCase()
+      .trim();
+    const found = await this.findByEmail(email);
+    if (!found || found.data.role !== 'demo') return null;
+    return found;
+  }
+
+  /**
+   * Idempotent: ensures a demo account exists at boot. Re-runs every cold
+   * start, so changing DEMO_PASSWORD via env var rotates the seed password.
+   * The seed account never expires (expiresAt = null) so the public View Demo
+   * link keeps working indefinitely.
+   */
+  async seedDemoAccount() {
+    const email = (process.env.DEMO_EMAIL || 'demo@aivisibilitytracker.com')
+      .toLowerCase()
+      .trim();
+    const password = process.env.DEMO_PASSWORD || 'demo-public-2026';
+    const existing = await this.findByEmail(email);
+    if (existing) {
+      // Refresh password + ensure flags. Don't clobber usage counters.
+      await this.col().doc(existing.id).update({
+        passwordHash: await bcrypt.hash(password, 10),
+        role: 'demo',
+        active: true,
+        expiresAt: null,
+        maxMasterScans: 0,
+        maxScans: 0,
+      });
+      this.logger.log(`Demo account refreshed: ${email}`);
+      return { id: existing.id, updated: true };
+    }
+    const docData: UserDoc = {
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      role: 'demo',
+      active: true,
+      expiresAt: null,
+      maxMasterScans: 0,
+      maxScans: 0,
+      usedMasterScans: 0,
+      usedScans: 0,
+      createdAt: this.firebase.now(),
+      createdBy: null,
+      lastLoginAt: null,
+    };
+    const ref = await this.col().add(docData);
+    this.logger.log(`Demo account seeded: ${email}`);
+    return { id: ref.id, updated: false };
+  }
 }

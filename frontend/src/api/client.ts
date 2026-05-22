@@ -1248,6 +1248,14 @@ export const api = {
     return res.data;
   },
 
+  loginDemo: async () => {
+    const res = await http.post<{ token: string; user: PublicUser }>(
+      '/auth/demo-login',
+      {},
+    );
+    return res.data;
+  },
+
   me: async () => {
     const res = await http.get<PublicUser>('/auth/me');
     return res.data;

@@ -14,7 +14,9 @@ interface AuthState {
     user: PublicUser | null;
     token: string | null;
     loading: boolean;
+    isDemo: boolean;
     login: (email: string, password: string) => Promise<void>;
+    loginDemo: () => Promise<void>;
     logout: () => void;
     refresh: () => Promise<void>;
 }
@@ -61,15 +63,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u);
     }, []);
 
+    const loginDemo = useCallback(async () => {
+        const { token: t, user: u } = await api.loginDemo();
+        try { localStorage.setItem(TOKEN_KEY, t); } catch { /* noop */ }
+        setToken(t);
+        setUser(u);
+    }, []);
+
     const logout = useCallback(() => {
         try { localStorage.removeItem(TOKEN_KEY); } catch { /* noop */ }
         setToken(null);
         setUser(null);
     }, []);
 
+    const isDemo = user?.role === 'demo';
+
     const value = useMemo<AuthState>(
-        () => ({ user, token, loading, login, logout, refresh }),
-        [user, token, loading, login, logout, refresh],
+        () => ({ user, token, loading, isDemo, login, loginDemo, logout, refresh }),
+        [user, token, loading, isDemo, login, loginDemo, logout, refresh],
     );
 
     return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

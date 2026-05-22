@@ -15,7 +15,7 @@ import {
     useReducedMotion,
 } from 'framer-motion';
 import {
-    Lock, Mail, Loader2, MessageCircle, BarChart3, Target, Zap, Sparkles, ArrowRight,
+    Lock, Mail, Loader2, MessageCircle, BarChart3, Target, Zap, Sparkles, ArrowRight, Play,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 
@@ -74,7 +74,7 @@ function CircuitOverlay({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 export function LoginPage() {
-    const { login } = useAuth();
+    const { login, loginDemo } = useAuth();
     const prefersReducedMotion = !!useReducedMotion();
 
     const [email, setEmail] = useState('');
@@ -83,6 +83,7 @@ export function LoginPage() {
     const [remember, setRemember] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [demoLoading, setDemoLoading] = useState(false);
     const [focused, setFocused] = useState<Focus>(null);
 
     // Mouse parallax for the robot (stronger range, smooth spring).
@@ -119,6 +120,19 @@ export function LoginPage() {
             setError(msg);
         } finally {
             setSubmitting(false);
+        }
+    }
+
+    async function handleDemoLogin() {
+        setError(null);
+        setDemoLoading(true);
+        try {
+            await loginDemo();
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Demo entry failed';
+            setError(msg);
+        } finally {
+            setDemoLoading(false);
         }
     }
 
@@ -503,6 +517,36 @@ export function LoginPage() {
                                     )}
                                 </motion.button>
                             </form>
+
+                            {/* "or try it now" divider */}
+                            <div className="my-5 flex items-center gap-3 text-[10.5px] uppercase tracking-[0.22em] text-indigo-300/45">
+                                <span className="flex-1 h-px bg-white/10" />
+                                <span>or try it now</span>
+                                <span className="flex-1 h-px bg-white/10" />
+                            </div>
+
+                            {/* VIEW DEMO — credential-less, drops straight into Platinum Square tour */}
+                            <motion.button
+                                type="button"
+                                onClick={handleDemoLogin}
+                                disabled={demoLoading}
+                                whileHover={{ y: -1 }}
+                                whileTap={{ y: 0 }}
+                                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/[0.07] border border-white/15 hover:bg-white/[0.11] hover:border-emerald-300/45 text-white/95 text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                            >
+                                {demoLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span>Loading demo…</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play className="w-4 h-4 text-emerald-300" fill="currentColor" />
+                                        <span>View Demo</span>
+                                        <span className="text-[11px] font-normal text-emerald-300/85">— no signup</span>
+                                    </>
+                                )}
+                            </motion.button>
 
                             {/* Demo CTA */}
                             <motion.a
