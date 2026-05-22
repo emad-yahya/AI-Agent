@@ -17,15 +17,17 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   app.setGlobalPrefix('api');
 
-  // Idempotent demo seed — ensures the public "View Demo" button always works.
+  await app.listen(process.env.PORT ?? 3000);
+  logger.log(`backend running on ${await app.getUrl()}`);
+
+  // Idempotent demo seed — runs after listen() so FirebaseService.onModuleInit
+  // has guaranteed to finish (otherwise this.firebase.getDb() is undefined and
+  // the seed fails silently, leaving the public "View Demo" button broken).
   try {
     const users = app.get(UsersService);
     await users.seedDemoAccount();
   } catch (err) {
     logger.warn(`demo seed skipped: ${(err as Error).message}`);
   }
-
-  await app.listen(process.env.PORT ?? 3000);
-  logger.log(`backend running on ${await app.getUrl()}`);
 }
 void bootstrap();
