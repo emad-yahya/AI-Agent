@@ -144,21 +144,30 @@ export function LoginPage() {
                 transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
             />
 
-            {/* ─── ROBOT — centerpiece, full visibility ─── */}
+            {/* ─── ROBOT — full background image ─── */}
             <motion.div
-                className="absolute inset-y-0 left-[18%] right-[28%] z-[1] hidden md:flex items-end justify-center pointer-events-none"
+                className="absolute inset-0 z-0 pointer-events-none"
                 style={{ x: robotX, y: robotY }}
-                animate={{ scale: focused ? 1.05 : 1 }}
+                animate={{ scale: focused ? 1.04 : 1 }}
                 transition={{ type: 'spring', stiffness: 80, damping: 22 }}
             >
                 <img
-                    src="/roobot.png"
+                    src="/robot.png"
                     alt=""
                     aria-hidden="true"
                     draggable={false}
-                    className="h-[95%] w-auto object-contain"
+                    className="w-full h-full object-cover object-center"
                     style={{
-                        filter: 'saturate(1.15) contrast(1.05) hue-rotate(-5deg) drop-shadow(0_30px_60px_rgba(0,0,0,0.5))',
+                        filter: 'saturate(1.05) contrast(1.02)',
+                    }}
+                />
+                {/* Dim overlay so hero text + form stay legible */}
+                <div
+                    className="absolute inset-0"
+                    style={{
+                        background:
+                            'linear-gradient(90deg, rgba(15,8,40,0.85) 0%, rgba(20,10,55,0.55) 28%, rgba(20,10,55,0.20) 50%, rgba(20,10,55,0.55) 72%, rgba(15,8,40,0.85) 100%),' +
+                            'linear-gradient(180deg, rgba(15,8,40,0.45) 0%, transparent 25%, transparent 75%, rgba(15,8,40,0.55) 100%)',
                     }}
                 />
             </motion.div>
