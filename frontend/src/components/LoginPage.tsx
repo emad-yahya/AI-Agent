@@ -92,6 +92,9 @@ export function LoginPage() {
     const smy = useSpring(my, { stiffness: 35, damping: 22, mass: 1 });
     const robotX = useTransform(smx, [-1, 1], [-22, 22]);
     const robotY = useTransform(smy, [-1, 1], [-12, 12]);
+    // Form 3D tilt — opposite direction so card feels in foreground (parallax depth).
+    const formRotY = useTransform(smx, [-1, 1], [-7, 7]);
+    const formRotX = useTransform(smy, [-1, 1], [5, -5]);
 
     useEffect(() => {
         if (prefersReducedMotion) return;
@@ -273,7 +276,7 @@ export function LoginPage() {
                         </motion.a>
                     </motion.div>
 
-                    {/* RIGHT: form card */}
+                    {/* RIGHT: form card — true glassmorphism + 3D tilt */}
                     <motion.div
                         initial={{ opacity: 0, y: 14 }}
                         animate={{
@@ -283,19 +286,51 @@ export function LoginPage() {
                         }}
                         transition={{ duration: 0.55, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
                         className="relative z-10 w-full max-w-[420px] mx-auto lg:ml-auto lg:mr-2"
+                        style={{ perspective: 1400 }}
                     >
                         <motion.div
-                            className="rounded-3xl p-7 md:p-8 backdrop-blur-2xl ring-1 ring-white/10"
+                            style={{
+                                rotateX: prefersReducedMotion ? 0 : formRotX,
+                                rotateY: prefersReducedMotion ? 0 : formRotY,
+                                transformStyle: 'preserve-3d',
+                            }}
+                        >
+                        <motion.div
+                            className="relative overflow-hidden rounded-3xl p-7 md:p-8 border border-white/15"
+                            style={{
+                                background:
+                                    'linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.025) 50%, rgba(255,255,255,0.07) 100%)',
+                                backdropFilter: 'blur(28px) saturate(180%)',
+                                WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+                            }}
                             animate={{
-                                background: 'rgba(20,10,45,0.55)',
                                 boxShadow: isEmail
-                                    ? '0 30px 80px -20px rgba(34,211,238,0.40), inset 0 1px 0 rgba(255,255,255,0.06)'
+                                    ? '0 40px 100px -20px rgba(34,211,238,0.45), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(34,211,238,0.22)'
                                     : isPw
-                                        ? '0 30px 80px -20px rgba(236,72,153,0.45), inset 0 1px 0 rgba(255,255,255,0.06)'
-                                        : '0 30px 80px -20px rgba(124,58,237,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
+                                        ? '0 40px 100px -20px rgba(236,72,153,0.50), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(236,72,153,0.24)'
+                                        : '0 40px 100px -20px rgba(124,58,237,0.50), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.05)',
                             }}
                             transition={{ duration: 0.4 }}
                         >
+                            {/* Top edge highlight (the "lens" line) */}
+                            <div
+                                aria-hidden="true"
+                                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/55 to-transparent pointer-events-none"
+                            />
+                            {/* Inner glass shine — soft luminance from the top */}
+                            <div
+                                aria-hidden="true"
+                                className="absolute inset-x-6 top-0 h-32 bg-gradient-to-b from-white/[0.12] via-white/[0.04] to-transparent rounded-t-3xl pointer-events-none"
+                            />
+                            {/* Subtle diagonal sheen */}
+                            <div
+                                aria-hidden="true"
+                                className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
+                                style={{
+                                    background:
+                                        'radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 60%)',
+                                }}
+                            />
                             {/* Heading */}
                             <h2 className="text-[32px] font-bold tracking-tight text-white leading-tight">
                                 Welcome back
@@ -491,6 +526,7 @@ export function LoginPage() {
                                 </div>
                                 <ArrowRight className="w-4 h-4 text-emerald-300/85 shrink-0 group-hover:translate-x-0.5 transition-transform" />
                             </motion.a>
+                        </motion.div>
                         </motion.div>
                     </motion.div>
                 </div>
