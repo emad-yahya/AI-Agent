@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { api, type AnalyticsResponse, type Brand } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
+import { useAuth } from '../auth/AuthContext';
 import { StatCard } from '../components/StatCard';
 import { EngineBreakdown } from '../components/EngineBreakdown';
 import { Activity, Target, Percent, AlertCircle, Inbox } from 'lucide-react';
@@ -16,6 +17,7 @@ export function Dashboard() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrand, setSelectedBrand] = useState<string>('');
   const { data, loading, error, run } = useAsync<AnalyticsResponse>();
+  const { isDemo } = useAuth();
 
   useEffect(() => {
     api.getBrands().then((b) => {
@@ -123,9 +125,9 @@ export function Dashboard() {
 
           <UnifiedVisibilityChart brand={selectedBrand} aiTimeline={data.timeline} />
           <EngineBreakdown byEngine={data.byEngine} />
-          <ScanHistory brand={selectedBrand} />
-          <SeoSitesOverview />
-          <ScheduledScansPanel />
+          {!isDemo && <ScanHistory brand={selectedBrand} />}
+          {!isDemo && <SeoSitesOverview />}
+          {!isDemo && <ScheduledScansPanel />}
         </motion.div>
       )}
 

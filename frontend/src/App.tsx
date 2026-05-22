@@ -251,6 +251,13 @@ export default function App() {
     const safeTab = visibleTabs.find((t) => t.key === tab) ? tab : visibleTabs[0].key;
     const activeTab = visibleTabs.find((t) => t.key === safeTab) ?? visibleTabs[0];
 
+    // Force-snap selected tab onto a visible one when demo session activates.
+    // Default `tab` state is 'scan' which is hidden in demo; without this the
+    // hidden Scan content would render on first paint after View Demo login.
+    useEffect(() => {
+        if (safeTab !== tab) setTab(safeTab);
+    }, [safeTab, tab]);
+
     return (
         <div className="min-h-screen relative">
             <div className="app-mesh-bg" />
@@ -330,14 +337,14 @@ export default function App() {
 
                 <AnimatePresence mode="wait">
                     <motion.div
-                        key={tab}
+                        key={safeTab}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
                         transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
                         className="flex flex-col gap-6"
                     >
-                        {tab === 'scan' && (
+                        {safeTab === 'scan' && (
                             <>
                                 <ScanForm onScanComplete={handleScanComplete} />
 
@@ -539,9 +546,9 @@ export default function App() {
                             </>
                         )}
 
-                        {tab === 'dashboard' && <Dashboard />}
+                        {safeTab === 'dashboard' && <Dashboard />}
 
-                        {tab === 'compare' && (
+                        {safeTab === 'compare' && (
                             <>
                                 <CompareForm onResult={(r) => { setCompareResult(r); }} />
                                 {compareResult && (
