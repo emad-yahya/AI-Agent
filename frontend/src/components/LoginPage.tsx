@@ -150,8 +150,11 @@ export function LoginPage() {
                 }}
             />
 
-            {/* Mobile robot — small, ambient, top right corner */}
-            <Robot3D className="md:hidden absolute z-[1] -right-12 top-4 w-[180px] opacity-40" />
+            {/* Mobile robot — tiny ambient accent, top right corner */}
+            <Robot3D className="md:hidden absolute z-[1] -right-16 top-2 w-[140px] opacity-25" />
+
+            {/* Desktop robot — sits in the gap between hero copy and form, behind the form card */}
+            <Robot3D className="hidden lg:block absolute z-[1] right-[38%] xl:right-[40%] top-1/2 -translate-y-1/2 w-[300px] xl:w-[360px] opacity-[0.18] xl:opacity-25" />
 
             {/* ───────── Content ───────── */}
             <div className="relative z-10 min-h-screen grid lg:grid-cols-[1.1fr_1fr] gap-0">
@@ -162,8 +165,6 @@ export function LoginPage() {
                     transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                     className="hidden lg:flex flex-col justify-between p-14 xl:p-20 relative"
                 >
-                    {/* 3D Robot — ambient hero element, low opacity at lg, full at xl */}
-                    <Robot3D className="absolute z-0 right-[-60px] xl:right-0 top-1/2 -translate-y-1/2 w-[360px] xl:w-[460px] opacity-30 xl:opacity-70" />
                     {/* Brand mark */}
                     <div className="relative z-10 flex items-center gap-3">
                         <div className="relative">
