@@ -1,7 +1,8 @@
 // frontend/src/components/LoginPage.tsx
-// Pro split layout: dark hero panel (robot as background) + clean form panel.
-import { useState, type FormEvent } from 'react';
-import { motion } from 'framer-motion';
+// Pro split layout: dark hero panel with REACTIVE robot background + clean form.
+// Robot tilts + glows toward email, covers eyes when password focused.
+import { useEffect, useState, type FormEvent } from 'react';
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import {
     Eye, Lock, Mail, Loader2, ShieldCheck, Sparkles, BarChart3,
     Target, Zap, MessageCircle, ArrowRight, Gift, Check,
@@ -23,6 +24,54 @@ const HIGHLIGHTS = [
     { icon: Zap,       text: 'One-click Master scan: AI engines + 6 Google modules' },
 ];
 
+type Focus = 'email' | 'password' | null;
+
+// Stylized robot hand SVG that slides in to cover an eye.
+function RobotHand({ flip = false }: { flip?: boolean }) {
+    return (
+        <svg
+            viewBox="0 0 120 140"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ transform: flip ? 'scaleX(-1)' : undefined }}
+            className="w-full h-full drop-shadow-[0_8px_20px_rgba(0,0,0,0.4)]"
+        >
+            <defs>
+                <linearGradient id={`palmGrad-${flip ? 'r' : 'l'}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f1f5f9" />
+                    <stop offset="55%" stopColor="#cbd5e1" />
+                    <stop offset="100%" stopColor="#64748b" />
+                </linearGradient>
+                <linearGradient id={`fingerGrad-${flip ? 'r' : 'l'}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#e2e8f0" />
+                    <stop offset="100%" stopColor="#475569" />
+                </linearGradient>
+            </defs>
+            {/* Wrist / forearm */}
+            <rect x="35" y="105" width="50" height="35" rx="10" fill="#334155" />
+            <rect x="40" y="110" width="40" height="6" rx="2" fill="#1e293b" />
+            <rect x="40" y="120" width="40" height="6" rx="2" fill="#1e293b" />
+            {/* Palm */}
+            <path
+                d="M 22 60 Q 22 38 45 35 L 75 35 Q 98 38 98 60 L 98 100 Q 98 115 80 115 L 40 115 Q 22 115 22 100 Z"
+                fill={`url(#palmGrad-${flip ? 'r' : 'l'})`}
+                stroke="#334155"
+                strokeWidth="2"
+            />
+            {/* Fingers (3) */}
+            <rect x="30" y="18" width="16" height="50" rx="7" fill={`url(#fingerGrad-${flip ? 'r' : 'l'})`} stroke="#475569" strokeWidth="1.5" />
+            <rect x="52" y="10" width="16" height="58" rx="7" fill={`url(#fingerGrad-${flip ? 'r' : 'l'})`} stroke="#475569" strokeWidth="1.5" />
+            <rect x="74" y="18" width="16" height="50" rx="7" fill={`url(#fingerGrad-${flip ? 'r' : 'l'})`} stroke="#475569" strokeWidth="1.5" />
+            {/* Knuckle joints */}
+            <circle cx="38" cy="35" r="3" fill="#1e293b" />
+            <circle cx="60" cy="28" r="3" fill="#1e293b" />
+            <circle cx="82" cy="35" r="3" fill="#1e293b" />
+            {/* Palm tech detail */}
+            <circle cx="60" cy="78" r="6" fill="#0ea5e9" opacity="0.7" />
+            <circle cx="60" cy="78" r="3" fill="#67e8f9" />
+        </svg>
+    );
+}
+
 export function LoginPage() {
     const { login } = useAuth();
     const [email, setEmail] = useState('');
@@ -30,6 +79,27 @@ export function LoginPage() {
     const [showPw, setShowPw] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [focused, setFocused] = useState<Focus>(null);
+
+    // Mouse parallax for the robot.
+    const mx = useMotionValue(0);
+    const my = useMotionValue(0);
+    const smx = useSpring(mx, { stiffness: 40, damping: 22, mass: 1 });
+    const smy = useSpring(my, { stiffness: 40, damping: 22, mass: 1 });
+    const parallaxX = useTransform(smx, [-1, 1], [-12, 12]);
+    const parallaxY = useTransform(smy, [-1, 1], [-8, 8]);
+    const tiltY = useTransform(smx, [-1, 1], [-3, 3]);
+
+    useEffect(() => {
+        function onMove(e: MouseEvent) {
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            mx.set((e.clientX - cx) / cx);
+            my.set((e.clientY - cy) / cy);
+        }
+        window.addEventListener('mousemove', onMove);
+        return () => window.removeEventListener('mousemove', onMove);
+    }, [mx, my]);
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
@@ -45,44 +115,120 @@ export function LoginPage() {
         }
     }
 
+    // Reaction states driven by focus.
+    const isEmail = focused === 'email';
+    const isPw = focused === 'password' && !showPw;
+    const robotAnim = {
+        scale: isPw ? 0.97 : isEmail ? 1.03 : 1,
+        rotate: isEmail ? -1.5 : isPw ? 1 : 0,
+        x: isEmail ? 14 : 0,
+        filter: isPw
+            ? 'brightness(0.78) saturate(0.85)'
+            : isEmail
+                ? 'brightness(1.06) saturate(1.1)'
+                : 'brightness(1) saturate(1)',
+    };
+
     return (
         <div className="min-h-screen w-full grid lg:grid-cols-[1.05fr_1fr] bg-white">
-            {/* ═════════════ LEFT — Dark hero panel with robot background ═════════════ */}
+            {/* ═════════════ LEFT — Dark hero panel with reactive robot background ═════════════ */}
             <aside className="relative hidden lg:flex flex-col justify-between p-12 xl:p-16 text-white overflow-hidden">
-                {/* Robot — true background, full cover, low opacity */}
-                <div className="absolute inset-0 z-0">
-                    <img
-                        src="/roobot.png"
-                        alt=""
-                        aria-hidden="true"
-                        draggable={false}
-                        className="absolute inset-0 w-full h-full object-cover object-center scale-110"
-                        style={{ filter: 'saturate(0.9) contrast(1.05)' }}
-                    />
-                </div>
+                {/* Robot layer — animates on focus + mouse parallax */}
+                <motion.div
+                    className="absolute inset-0 z-0"
+                    style={{ x: parallaxX, y: parallaxY, rotateY: tiltY }}
+                    animate={robotAnim}
+                    transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+                >
+                    <div className="relative w-full h-full">
+                        <img
+                            src="/roobot.png"
+                            alt=""
+                            aria-hidden="true"
+                            draggable={false}
+                            className="absolute inset-0 w-full h-full object-cover object-center scale-110"
+                        />
+
+                        {/* Eye glow when EMAIL focused — paints a cyan halo over eye area */}
+                        <AnimatePresence>
+                            {isEmail && (
+                                <motion.div
+                                    key="eyeglow"
+                                    initial={{ opacity: 0, scale: 0.7 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.7 }}
+                                    transition={{ duration: 0.4 }}
+                                    className="absolute pointer-events-none"
+                                    style={{
+                                        top: '30%',
+                                        left: '38%',
+                                        width: '24%',
+                                        height: '10%',
+                                        background:
+                                            'radial-gradient(ellipse at center, rgba(103,232,249,0.85) 0%, rgba(6,182,212,0.4) 40%, transparent 70%)',
+                                        filter: 'blur(8px)',
+                                        mixBlendMode: 'screen',
+                                    }}
+                                />
+                            )}
+                        </AnimatePresence>
+
+                        {/* Hands cover eyes when PASSWORD focused */}
+                        <AnimatePresence>
+                            {isPw && (
+                                <>
+                                    <motion.div
+                                        key="hand-l"
+                                        initial={{ x: '-120%', y: 30, opacity: 0, rotate: -20 }}
+                                        animate={{ x: '0%', y: 0, opacity: 1, rotate: -10 }}
+                                        exit={{ x: '-120%', y: 30, opacity: 0, rotate: -20 }}
+                                        transition={{ type: 'spring', stiffness: 180, damping: 20 }}
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            top: '20%',
+                                            left: '24%',
+                                            width: '18%',
+                                            height: '22%',
+                                        }}
+                                    >
+                                        <RobotHand />
+                                    </motion.div>
+                                    <motion.div
+                                        key="hand-r"
+                                        initial={{ x: '120%', y: 30, opacity: 0, rotate: 20 }}
+                                        animate={{ x: '0%', y: 0, opacity: 1, rotate: 10 }}
+                                        exit={{ x: '120%', y: 30, opacity: 0, rotate: 20 }}
+                                        transition={{ type: 'spring', stiffness: 180, damping: 20, delay: 0.05 }}
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            top: '20%',
+                                            right: '24%',
+                                            width: '18%',
+                                            height: '22%',
+                                        }}
+                                    >
+                                        <RobotHand flip />
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </motion.div>
 
                 {/* Layered overlays for legibility + brand colour */}
                 <div
-                    className="absolute inset-0 z-[1]"
+                    className="absolute inset-0 z-[1] pointer-events-none"
                     style={{
                         background:
                             'linear-gradient(135deg, rgba(15,23,42,0.92) 0%, rgba(30,27,75,0.85) 45%, rgba(76,29,149,0.78) 100%)',
                     }}
                 />
                 <div
-                    className="absolute inset-0 z-[1]"
+                    className="absolute inset-0 z-[1] pointer-events-none"
                     style={{
                         background:
                             'radial-gradient(800px 600px at 80% 20%, rgba(168,85,247,0.25), transparent 60%),' +
                             'radial-gradient(700px 500px at 20% 90%, rgba(99,102,241,0.30), transparent 60%)',
-                    }}
-                />
-                {/* Subtle grain */}
-                <div
-                    className="absolute inset-0 z-[1] opacity-[0.04] mix-blend-overlay pointer-events-none"
-                    style={{
-                        backgroundImage:
-                            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
                     }}
                 />
 
@@ -159,8 +305,8 @@ export function LoginPage() {
                     </ul>
                 </div>
 
-                {/* ─── Bottom: owner pill ─── */}
-                <div className="relative z-10">
+                {/* ─── Bottom: owner pill + live status ─── */}
+                <div className="relative z-10 flex items-center gap-3">
                     <a
                         href={OWNER_WA_CONTACT_LINK}
                         target="_blank"
@@ -172,12 +318,23 @@ export function LoginPage() {
                         <span className="text-white/30">·</span>
                         <span className="font-mono text-white/70">+{OWNER_WA_NUMBER}</span>
                     </a>
+                    <AnimatePresence>
+                        {focused && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -6 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -6 }}
+                                className="text-[10px] text-indigo-200/70 font-medium italic"
+                            >
+                                {isEmail ? '👀 reading your email…' : '🙈 not peeking at your password!'}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </aside>
 
             {/* ═════════════ RIGHT — Form panel ═════════════ */}
             <main className="relative flex flex-col justify-center items-center px-6 py-12 lg:px-12 xl:px-16 bg-white">
-                {/* Soft ambient blobs on form side (subtle) */}
                 <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
@@ -187,7 +344,6 @@ export function LoginPage() {
                     }}
                 />
 
-                {/* Mobile brand mark */}
                 <div className="lg:hidden mb-10 flex items-center gap-3">
                     <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-pink-500 flex items-center justify-center shadow-md">
                         <Eye className="w-5 h-5 text-white" />
@@ -208,7 +364,6 @@ export function LoginPage() {
                     transition={{ duration: 0.5 }}
                     className="relative w-full max-w-[400px]"
                 >
-                    {/* Heading */}
                     <div className="mb-8">
                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 shadow-[0_10px_28px_-8px_rgba(168,85,247,0.5)] mb-5">
                             <ShieldCheck className="w-5 h-5 text-white" />
@@ -221,7 +376,6 @@ export function LoginPage() {
                         </p>
                     </div>
 
-                    {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label className="block text-[11px] font-bold text-slate-700 mb-2 uppercase tracking-wider">
@@ -235,6 +389,8 @@ export function LoginPage() {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
+                                    onFocus={() => setFocused('email')}
+                                    onBlur={() => setFocused((f) => (f === 'email' ? null : f))}
                                     className="w-full pl-11 pr-3 py-3.5 rounded-xl border border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-sm transition placeholder:text-slate-400"
                                     placeholder="you@example.com"
                                 />
@@ -253,6 +409,8 @@ export function LoginPage() {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
+                                    onFocus={() => setFocused('password')}
+                                    onBlur={() => setFocused((f) => (f === 'password' ? null : f))}
                                     className="w-full pl-11 pr-16 py-3.5 rounded-xl border border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-sm transition placeholder:text-slate-400"
                                     placeholder="••••••••"
                                 />
@@ -298,7 +456,6 @@ export function LoginPage() {
                         </motion.button>
                     </form>
 
-                    {/* Divider */}
                     <div className="flex items-center gap-3 my-6">
                         <div className="flex-1 h-px bg-slate-200" />
                         <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
@@ -307,7 +464,6 @@ export function LoginPage() {
                         <div className="flex-1 h-px bg-slate-200" />
                     </div>
 
-                    {/* Demo CTA */}
                     <motion.a
                         href={OWNER_WA_DEMO_LINK}
                         target="_blank"
@@ -317,7 +473,7 @@ export function LoginPage() {
                     >
                         <div className="flex items-center gap-3.5">
                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shrink-0">
-                                <Gift className="w-4.5 h-4.5 text-white" />
+                                <Gift className="w-4 h-4 text-white" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="text-[13px] font-bold text-slate-900">
@@ -334,7 +490,6 @@ export function LoginPage() {
                         </div>
                     </motion.a>
 
-                    {/* Footer copyright */}
                     <div className="mt-10 text-center text-[11px] text-slate-400">
                         © {new Date().getFullYear()} {OWNER_NAME}. All rights reserved.
                     </div>
