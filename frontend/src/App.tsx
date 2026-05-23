@@ -550,11 +550,15 @@ export default function App() {
 
                         {safeTab === 'compare' && (
                             <>
-                                <CompareForm onResult={(r) => { setCompareResult(r); }} />
-                                {compareResult && (
+                                {!isDemo && (
                                     <>
-                                        <ComparisonTable results={compareResult} />
-                                        <SovChart results={compareResult} />
+                                        <CompareForm onResult={(r) => { setCompareResult(r); }} />
+                                        {compareResult && (
+                                            <>
+                                                <ComparisonTable results={compareResult} />
+                                                <SovChart results={compareResult} />
+                                            </>
+                                        )}
                                     </>
                                 )}
                                 <CompetitorTrendChart />

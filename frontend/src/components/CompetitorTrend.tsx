@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -6,8 +6,13 @@ import {
 import { TrendingUp, Plus, X } from 'lucide-react';
 import { api, type CompetitorTrend } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
+import { useAuth } from '../auth/AuthContext';
 
 const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
+
+// Demo seed: three Dubai brokerages already wired into the backend fixture
+// at backend/src/analytics/demo-analytics-fixtures.ts → getDemoCompetitorTrends.
+const DEMO_BRANDS = ['Platinum Square', 'Driven Properties', 'Allsopp & Allsopp'];
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-GB', {
@@ -16,8 +21,15 @@ function formatDate(iso: string) {
 }
 
 export function CompetitorTrendChart() {
-  const [brands, setBrands] = useState<string[]>(['']);
+  const { isDemo } = useAuth();
+  const [brands, setBrands] = useState<string[]>(() => (isDemo ? DEMO_BRANDS : ['']));
   const { data, loading, error, run } = useAsync<CompetitorTrend[]>();
+
+  // Auto-run for demo so the chart is populated the moment Compare tab opens —
+  // no blank "Track trends" button state for public visitors.
+  useEffect(() => {
+    if (isDemo) run(api.getCompetitorTrends(DEMO_BRANDS));
+  }, [isDemo]);
 
   const addBrand = () => {
     if (brands.length < 4) setBrands((b) => [...b, '']);
@@ -59,7 +71,9 @@ export function CompetitorTrendChart() {
         Competitor Score Trends
       </h3>
 
-      <div className="flex flex-col gap-3 mb-4">
+      {/* Hide input form for demo — brands pre-seeded, chart loads on mount.
+          Owner still sees the full input UI to compose ad-hoc comparisons. */}
+      {!isDemo && <div className="flex flex-col gap-3 mb-4">
         {brands.map((b, i) => (
           <div key={i} className="flex items-center gap-2">
             <span
@@ -98,7 +112,7 @@ export function CompetitorTrendChart() {
             {loading ? 'Loading...' : 'Track trends'}
           </button>
         </div>
-      </div>
+      </div>}
 
       {error && (
         <p className="text-xs text-red-500 mb-3">{error}</p>

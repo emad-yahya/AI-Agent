@@ -94,6 +94,8 @@ export function getDemoCompetitorTrends(_brands: string[]) {
   // Side-by-side trend lines for Compare tab. Three Dubai brokerages on the
   // same time axis as getDemoAnalytics so visitors can see Platinum Square
   // pulling ahead of Driven Properties and Allsopp & Allsopp.
+  // Shape MUST match CompetitorTrend in frontend/src/api/client.ts:
+  //   { name: string, timeline: { date, avgScore, mentionRate }[] }
   const days = 14;
   const today = new Date();
   today.setUTCHours(12, 0, 0, 0);
@@ -101,21 +103,30 @@ export function getDemoCompetitorTrends(_brands: string[]) {
     new Date(today.getTime() - (days - 1 - i) * 86400000).toISOString(),
   );
 
-  const series = (scores: number[]) =>
-    dates.map((date, i) => ({ date, avgScore: scores[i] }));
+  const series = (scores: number[], rates: number[]) =>
+    dates.map((date, i) => ({ date, avgScore: scores[i], mentionRate: rates[i] }));
 
   return [
     {
-      brand: 'Platinum Square',
-      points: series([32, 35, 38, 34, 41, 46, 50, 54, 58, 61, 64, 66, 69, 71]),
+      name: 'Platinum Square',
+      timeline: series(
+        [32, 35, 38, 34, 41, 46, 50, 54, 58, 61, 64, 66, 69, 71],
+        [40, 43, 47, 42, 50, 55, 60, 63, 67, 70, 73, 75, 78, 80],
+      ),
     },
     {
-      brand: 'Driven Properties',
-      points: series([55, 56, 57, 55, 58, 59, 60, 60, 61, 62, 62, 63, 63, 64]),
+      name: 'Driven Properties',
+      timeline: series(
+        [55, 56, 57, 55, 58, 59, 60, 60, 61, 62, 62, 63, 63, 64],
+        [62, 63, 64, 62, 65, 66, 67, 67, 68, 69, 69, 70, 70, 71],
+      ),
     },
     {
-      brand: 'Allsopp & Allsopp',
-      points: series([48, 49, 50, 50, 51, 51, 52, 53, 53, 54, 54, 55, 55, 56]),
+      name: 'Allsopp & Allsopp',
+      timeline: series(
+        [48, 49, 50, 50, 51, 51, 52, 53, 53, 54, 54, 55, 55, 56],
+        [56, 57, 58, 58, 59, 59, 60, 61, 61, 62, 62, 63, 63, 64],
+      ),
     },
   ];
 }
