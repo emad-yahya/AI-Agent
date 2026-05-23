@@ -45,6 +45,7 @@ import { DemoBanner } from './components/DemoBanner';
 import { DemoSessionsPanel } from './components/DemoSessionsPanel';
 import { useAuth } from './auth/AuthContext';
 import { useDemoHeartbeat } from './hooks/useDemoHeartbeat';
+import { buildDemoScanResponse, DEMO_SCAN_META, DEMO_BRAND_ID } from './demo/demoScanFixture';
 import { Building2, FileSearch, Search, Trophy, ListChecks, MapPin, Bell } from 'lucide-react';
 
 type Tab = 'scan' | 'dashboard' | 'compare' | 'settings';
@@ -243,20 +244,32 @@ export default function App() {
 
     const { isDemo } = useAuth();
     useDemoHeartbeat();
-    // Demo hides Settings tab entirely (4a from spec: clean experience, no
-    // disabled-with-badge half-state). Demo also can't reach New scan.
+    // Demo hides Settings tab (no users management for public visitors), but
+    // keeps Scan tab visible so the visitor can browse a pre-built sample
+    // scan (Platinum Square) showing every feature panel.
     const visibleTabs = isDemo
-        ? TABS.filter((t) => t.key !== 'settings' && t.key !== 'scan')
+        ? TABS.filter((t) => t.key !== 'settings')
         : TABS;
     const safeTab = visibleTabs.find((t) => t.key === tab) ? tab : visibleTabs[0].key;
     const activeTab = visibleTabs.find((t) => t.key === safeTab) ?? visibleTabs[0];
 
     // Force-snap selected tab onto a visible one when demo session activates.
-    // Default `tab` state is 'scan' which is hidden in demo; without this the
-    // hidden Scan content would render on first paint after View Demo login.
     useEffect(() => {
         if (safeTab !== tab) setTab(safeTab);
     }, [safeTab, tab]);
+
+    // Demo session: pre-populate scan state with a complete Platinum Square
+    // sample on mount so the Scan tab renders every panel (Results, Topics,
+    // Citations, BrandPresence, OnPageSeo, ContentGap, etc.) without the
+    // visitor having to trigger any backend write (they're 403'd anyway).
+    useEffect(() => {
+        if (!isDemo) return;
+        if (scanResult) return;
+        const demoResp = buildDemoScanResponse();
+        setScanResult(demoResp);
+        setScanMeta(DEMO_SCAN_META);
+        setLastScanBrandId(DEMO_BRAND_ID);
+    }, [isDemo, scanResult]);
 
     return (
         <div className="min-h-screen relative">
@@ -346,7 +359,19 @@ export default function App() {
                     >
                         {safeTab === 'scan' && (
                             <>
-                                <ScanForm onScanComplete={handleScanComplete} />
+                                {!isDemo && <ScanForm onScanComplete={handleScanComplete} />}
+
+                                {isDemo && (
+                                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-fuchsia-50 to-pink-50 px-5 py-4 text-sm text-slate-700 flex items-start gap-3">
+                                        <Sparkles className="w-4 h-4 text-fuchsia-500 mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="font-semibold text-slate-900">Sample scan — Platinum Square (Dubai brokerage)</p>
+                                            <p className="text-[12.5px] text-slate-600 mt-0.5">
+                                                Pre-built results below show every panel a real scan produces. Sign up to scan your own brand.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {loading && (
                                     <div className="flex items-center justify-center gap-2 text-sm text-slate-500 py-10">
