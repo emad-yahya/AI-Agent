@@ -148,3 +148,79 @@ export function getDemoPromptCoverage(brandName: string) {
 }
 
 export const DEMO_BRAND_NAME = DEMO_BRAND.name;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEO / Google fixtures — feeds UnifiedVisibilityChart's Google line.
+// Without these, listSeoSites returns [] for demo and the chart shows only
+// the AI line + a stray Google dot.
+
+const DEMO_SEO_SITE = {
+  id: 'demo-seo-platinumsquare',
+  brandId: 'demo-platinum-square',
+  brand: DEMO_BRAND.name,
+  domain: 'platinumsquare.ae',
+  country: 'ae',
+  language: 'en',
+};
+
+const DEMO_KEYWORDS = [
+  'platinum square dubai',
+  'platinum square brokerage',
+  'best dubai broker',
+  'dubai marina apartments',
+  'downtown dubai property',
+  'jvc apartments for sale',
+  'business bay broker',
+  'dubai off-plan investment',
+  'palm jumeirah villa',
+  'dubai real estate agent',
+];
+
+export function getDemoSeoSites(brand?: string) {
+  if (brand && brand.toLowerCase() !== DEMO_BRAND.name.toLowerCase()) return [];
+  return [
+    {
+      ...DEMO_SEO_SITE,
+      discoveredKeywords: DEMO_KEYWORDS,
+      autoCompetitors: ['drivenproperties.com', 'allsoppandallsopp.com', 'bayut.com'],
+      createdAt: new Date(Date.now() - 14 * 86400000).toISOString(),
+      lastScanAt: new Date().toISOString(),
+    },
+  ];
+}
+
+export function getDemoSeoSite(siteId: string) {
+  if (siteId !== DEMO_SEO_SITE.id) return null;
+  return getDemoSeoSites()[0];
+}
+
+export function getDemoSeoSiteScans(siteId: string) {
+  if (siteId !== DEMO_SEO_SITE.id) return [];
+  const today = new Date();
+  today.setUTCHours(12, 0, 0, 0);
+  // Same 14-day spine as AI timeline so chart buckets line up cleanly.
+  // Coverage grows 40% → 80% (4 → 8 ranked out of 10 keywords).
+  // Avg position improves 18 → 7 (lower is better in SERPs).
+  const rankedCounts = [4, 4, 5, 4, 5, 6, 6, 7, 7, 7, 8, 8, 8, 8];
+  const avgPositions = [18, 17, 16, 17, 15, 13, 12, 11, 10, 9, 9, 8, 8, 7];
+  return rankedCounts.map((ranked, i) => {
+    const date = new Date(today.getTime() - (rankedCounts.length - 1 - i) * 86400000);
+    return {
+      id: `demo-seo-scan-${i + 1}`,
+      siteId: DEMO_SEO_SITE.id,
+      domain: DEMO_SEO_SITE.domain,
+      brand: DEMO_SEO_SITE.brand,
+      country: DEMO_SEO_SITE.country,
+      status: 'done' as const,
+      createdAt: date.toISOString(),
+      completedAt: date.toISOString(),
+      keywords: DEMO_KEYWORDS,
+      results: [],
+      competitorMap: { 'bayut.com': 9, 'drivenproperties.com': 6, 'allsoppandallsopp.com': 4 },
+      avgPosition: avgPositions[i],
+      rankedCount: ranked,
+      totalKeywords: DEMO_KEYWORDS.length,
+      anomalies: [],
+    };
+  });
+}

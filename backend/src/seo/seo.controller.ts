@@ -1,7 +1,18 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { SeoService } from './seo.service';
 import { CreateSeoScanDto } from './create-seo-scan.dto';
 import { CreateSeoSiteDto } from './create-seo-site.dto';
+import { AuthRequest } from '../auth/auth.guard';
+import {
+  getDemoSeoSites,
+  getDemoSeoSite,
+  getDemoSeoSiteScans,
+} from '../analytics/demo-analytics-fixtures';
+
+function isDemo(req: Request): boolean {
+  return (req as AuthRequest).user?.role === 'demo';
+}
 
 @Controller('seo')
 export class SeoController {
@@ -35,12 +46,14 @@ export class SeoController {
   }
 
   @Get('sites')
-  listSites(@Query('brand') brand?: string) {
+  listSites(@Req() req: Request, @Query('brand') brand?: string) {
+    if (isDemo(req)) return getDemoSeoSites(brand);
     return this.seo.listSites(brand);
   }
 
   @Get('sites/:siteId')
-  getSite(@Param('siteId') siteId: string) {
+  getSite(@Req() req: Request, @Param('siteId') siteId: string) {
+    if (isDemo(req)) return getDemoSeoSite(siteId);
     return this.seo.getSite(siteId);
   }
 
@@ -50,7 +63,8 @@ export class SeoController {
   }
 
   @Get('sites/:siteId/scans')
-  listSiteScans(@Param('siteId') siteId: string) {
+  listSiteScans(@Req() req: Request, @Param('siteId') siteId: string) {
+    if (isDemo(req)) return getDemoSeoSiteScans(siteId);
     return this.seo.listSiteScans(siteId);
   }
 
