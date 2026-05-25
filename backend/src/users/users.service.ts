@@ -18,6 +18,14 @@ export interface CreateDemoInput {
   maxScans: number;
 }
 
+export interface CreateTrialInput {
+  email: string;
+  password: string;
+  daysValid: number;
+  maxMasterScans: number;
+  maxScans: number;
+}
+
 export interface UpdateDemoInput {
   active?: boolean;
   addDaysValid?: number;
@@ -120,6 +128,39 @@ export class UsersService {
       lastLoginAt: null,
     } as UserDoc);
     return { id: ref.id, updated: false };
+  }
+
+  async createTrial(input: CreateTrialInput, createdBy: string): Promise<PublicUser> {
+    if (!input.email || !input.password) {
+      throw new BadRequestException('email and password required');
+    }
+    if (input.password.length < 6) {
+      throw new BadRequestException('password must be at least 6 chars');
+    }
+    const existing = await this.findByEmail(input.email);
+    if (existing) throw new BadRequestException('email already in use');
+
+    const days = Math.max(1, Math.floor(input.daysValid || 3));
+    const expiresAt = admin.firestore.Timestamp.fromMillis(
+      Date.now() + days * 24 * 60 * 60 * 1000,
+    );
+
+    const docData: UserDoc = {
+      email: input.email.toLowerCase().trim(),
+      passwordHash: await bcrypt.hash(input.password, 10),
+      role: 'trial',
+      active: true,
+      expiresAt,
+      maxMasterScans: Math.max(0, Math.floor(input.maxMasterScans ?? 1)),
+      maxScans: Math.max(0, Math.floor(input.maxScans ?? 10)),
+      usedMasterScans: 0,
+      usedScans: 0,
+      createdAt: this.firebase.now(),
+      createdBy,
+      lastLoginAt: null,
+    };
+    const ref = await this.col().add(docData);
+    return this.toPublic(ref.id, docData);
   }
 
   async createDemo(input: CreateDemoInput, createdBy: string): Promise<PublicUser> {
@@ -272,6 +313,30 @@ export class UsersService {
     const found = await this.findByEmail(email);
     if (!found || found.data.role !== 'demo') return null;
     return found;
+  }
+
+  /**
+   * One-shot migration: any pre-existing 'demo' account that ISN'T the public
+   * seed (different email) was created by the owner as a paid prospect trial
+   * before the 'trial' role existed. Flip it to 'trial' so it gains real write
+   * access. Idempotent — re-running is a no-op.
+   */
+  async migrateLegacyDemosToTrial() {
+    const seedEmail = (process.env.DEMO_EMAIL || 'demo@aivisibilitytracker.com')
+      .toLowerCase()
+      .trim();
+    const snap = await this.col().where('role', '==', 'demo').get();
+    let migrated = 0;
+    for (const doc of snap.docs) {
+      const data = doc.data() as UserDoc;
+      if (data.email === seedEmail) continue;
+      await this.col().doc(doc.id).update({ role: 'trial' });
+      migrated++;
+    }
+    if (migrated > 0) {
+      this.logger.log(`Migrated ${migrated} legacy demo account(s) to 'trial'`);
+    }
+    return { migrated };
   }
 
   /**

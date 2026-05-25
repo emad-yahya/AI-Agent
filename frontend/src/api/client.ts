@@ -1300,7 +1300,7 @@ export const api = {
     return res.data;
   },
 
-  createDemoUser: async (input: {
+  createTrialUser: async (input: {
     email: string;
     password: string;
     daysValid: number;
@@ -1311,7 +1311,7 @@ export const api = {
     return res.data;
   },
 
-  updateDemoUser: async (
+  updateTrialUser: async (
     id: string,
     input: {
       active?: boolean;
@@ -1326,7 +1326,7 @@ export const api = {
     return res.data;
   },
 
-  deleteDemoUser: async (id: string) => {
+  deleteTrialUser: async (id: string) => {
     const res = await http.delete<{ ok: true }>(`/admin/users/${id}`);
     return res.data;
   },
@@ -1335,7 +1335,7 @@ export const api = {
 export interface PublicUser {
   id: string;
   email: string;
-  role: 'owner' | 'demo';
+  role: 'owner' | 'demo' | 'trial';
   active: boolean;
   expiresAt: string | null;
   maxMasterScans: number;

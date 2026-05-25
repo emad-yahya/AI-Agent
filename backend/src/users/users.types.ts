@@ -1,4 +1,4 @@
-export type UserRole = 'owner' | 'demo';
+export type UserRole = 'owner' | 'demo' | 'trial';
 
 export interface UserDoc {
   email: string;

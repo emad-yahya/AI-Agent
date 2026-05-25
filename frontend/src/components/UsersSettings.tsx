@@ -51,7 +51,7 @@ export function UsersSettings() {
         setCreating(true);
         setError(null);
         try {
-            await api.createDemoUser({
+            await api.createTrialUser({
                 email: email.trim(),
                 password,
                 daysValid: Number(daysValid),
@@ -73,17 +73,17 @@ export function UsersSettings() {
     }
 
     async function toggleActive(u: PublicUser) {
-        await api.updateDemoUser(u.id, { active: !u.active });
+        await api.updateTrialUser(u.id, { active: !u.active });
         await load();
     }
 
     async function extend(u: PublicUser, days: number) {
-        await api.updateDemoUser(u.id, { addDaysValid: days });
+        await api.updateTrialUser(u.id, { addDaysValid: days });
         await load();
     }
 
     async function resetUsage(u: PublicUser) {
-        await api.updateDemoUser(u.id, { resetUsage: true });
+        await api.updateTrialUser(u.id, { resetUsage: true });
         await load();
     }
 
@@ -92,7 +92,7 @@ export function UsersSettings() {
         if (nm === null) return;
         const nr = window.prompt(`Max regular scans for ${u.email}?`, String(u.maxScans));
         if (nr === null) return;
-        await api.updateDemoUser(u.id, {
+        await api.updateTrialUser(u.id, {
             maxMasterScans: Number(nm) || 0,
             maxScans: Number(nr) || 0,
         });
@@ -102,17 +102,17 @@ export function UsersSettings() {
     async function changePw(u: PublicUser) {
         const np = window.prompt(`New password for ${u.email} (min 6 chars)`);
         if (!np) return;
-        await api.updateDemoUser(u.id, { newPassword: np });
+        await api.updateTrialUser(u.id, { newPassword: np });
         alert('Password updated');
     }
 
     async function remove(u: PublicUser) {
         if (!window.confirm(`Delete ${u.email}? This cannot be undone.`)) return;
-        await api.deleteDemoUser(u.id);
+        await api.deleteTrialUser(u.id);
         await load();
     }
 
-    const demos = users.filter((u) => u.role === 'demo');
+    const trials = users.filter((u) => u.role === 'trial');
     const owners = users.filter((u) => u.role === 'owner');
 
     return (
@@ -129,10 +129,10 @@ export function UsersSettings() {
                     </span>
                     <div>
                         <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                            Demo accounts
+                            Trial accounts
                         </h3>
                         <p className="text-xs text-slate-500">
-                            Create time-limited accounts for prospects.
+                            Time-limited accounts for prospects — full system access, quota-capped.
                         </p>
                     </div>
                 </div>
@@ -148,7 +148,7 @@ export function UsersSettings() {
                         className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white inline-flex items-center gap-1.5 shadow"
                     >
                         <UserPlus className="w-3.5 h-3.5" />
-                        {showCreate ? 'Cancel' : 'New demo'}
+                        {showCreate ? 'Cancel' : 'New trial'}
                     </button>
                 </div>
             </div>
@@ -238,13 +238,13 @@ export function UsersSettings() {
                 <div className="text-sm text-slate-500 py-6 text-center">Loading…</div>
             ) : (
                 <>
-                    {demos.length === 0 && (
+                    {trials.length === 0 && (
                         <div className="text-sm text-slate-400 py-6 text-center italic">
-                            No demo accounts yet.
+                            No trial accounts yet.
                         </div>
                     )}
                     <div className="space-y-2">
-                        {demos.map((u) => {
+                        {trials.map((u) => {
                             const dleft = daysLeft(u.expiresAt);
                             const lowQuota =
                                 u.maxScans > 0 && u.usedScans / u.maxScans > 0.8;

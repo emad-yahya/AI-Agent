@@ -34,7 +34,7 @@ export class UsersController {
       maxScans: number;
     },
   ) {
-    return this.users.createDemo(body, current.id);
+    return this.users.createTrial(body, current.id);
   }
 
   @Patch(':id')

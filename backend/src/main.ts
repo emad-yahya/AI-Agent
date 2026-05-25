@@ -26,6 +26,7 @@ async function bootstrap() {
   try {
     const users = app.get(UsersService);
     await users.seedDemoAccount();
+    await users.migrateLegacyDemosToTrial();
   } catch (err) {
     logger.warn(`demo seed skipped: ${(err as Error).message}`);
   }
